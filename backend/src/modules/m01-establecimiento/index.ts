@@ -7,3 +7,6 @@ export * from './establishment';
 export * from './subject';
 export * from './classroom';
 export * from './inscription';
+export * from './selection';
+export * from './assistant';
+export * from './common/dto';

@@ -8,6 +8,10 @@ import { EstablishmentModule } from './establishment/establishment.module';
 import { SubjectModule } from './subject/subject.module';
 import { ClassroomModule } from './classroom/classroom.module';
 import { InscriptionModule } from './inscription/inscription.module';
+import { SelectionController } from './selection/selection.controller';
+import { SelectionService } from './selection/selection.service';
+import { AssistantController } from './assistant/assistant.controller';
+import { AssistantService } from './assistant/assistant.service';
 
 @Module({
   imports: [
@@ -21,6 +25,8 @@ import { InscriptionModule } from './inscription/inscription.module';
     ClassroomModule,
     InscriptionModule,
   ],
+  controllers: [SelectionController, AssistantController],
+  providers: [SelectionService, AssistantService],
   exports: [
     AuthModule,
     UserModule,
@@ -31,6 +37,8 @@ import { InscriptionModule } from './inscription/inscription.module';
     SubjectModule,
     ClassroomModule,
     InscriptionModule,
+    SelectionService,
+    AssistantService,
   ],
 })
 export class M01EstablecimientoModule {}
