@@ -173,9 +173,10 @@ model Session {
 }
 
 // =============================================================================
-// NOTIFICATION MODULE (existing models moved to public schema)
+// M01 - COMMUNICATIONS MODULE (notifications, announcements, preferences)
 // =============================================================================
 
+/// Notification model for user notifications
 model Notification {
   id         BigInt           @id @default(autoincrement())
   user_id    BigInt
@@ -190,35 +191,39 @@ model Notification {
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@index([user_id])
-  @@index([is_read])
+  @@index([user_id], name: "idx_m01_notifications_user_id")
+  @@index([read_at], name: "idx_m01_notifications_read_at")
+  @@index([user_id, is_read], name: "idx_m01_notifications_user_read")
   @@index([created_at])
-  @@map("notifications")
+  @@map("m01_notifications")
   @@schema("public")
 }
 
+/// Announcement model for system-wide announcements
 model Announcement {
-  id          BigInt          @id @default(autoincrement())
-  creatorId   BigInt?
-  title       String
-  content     String
-  type        NotificationType
-  priority    Priority
-  isActive    Boolean         @default(true) @map("is_active")
-  publishedAt DateTime        @default(now()) @map("published_at")
-  expiresAt   DateTime?       @map("expires_at")
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
+  id           BigInt           @id @default(autoincrement())
+  creator_id   BigInt?
+  title        String
+  content      String
+  type         NotificationType
+  priority     Priority
+  target_roles String[]         @default([])
+  is_active    Boolean          @default(true)
+  published_at DateTime         @default(now())
+  expires_at   DateTime?
+  created_at   DateTime         @default(now())
+  updated_at   DateTime         @updatedAt
 
-  creator     User?           @relation("createdAnnouncements", fields: [creatorId], references: [id], onDelete: SetNull)
+  creator User? @relation("createdAnnouncements", fields: [creator_id], references: [id], onDelete: SetNull)
 
-  @@index([creatorId])
-  @@index([isActive])
-  @@index([publishedAt])
-  @@map("announcements")
+  @@index([creator_id])
+  @@index([is_active, published_at], name: "idx_m01_announcements_active_published")
+  @@index([target_roles], name: "idx_m01_announcements_target_roles")
+  @@map("m01_announcements")
   @@schema("public")
 }
 
+/// User notification preferences
 model NotificationPreference {
   id             BigInt   @id @default(autoincrement())
   user_id        BigInt   @unique
@@ -230,7 +235,7 @@ model NotificationPreference {
 
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
-  @@map("notification_preferences")
+  @@map("m01_notification_preferences")
   @@schema("public")
 }
 
@@ -246,6 +251,7 @@ enum M01ClassroomRole {
   ADMINISTRATOR
 
   @@map("m01_classroom_role")
+  @@schema("m01_establecimiento")
 }
 
 /// Establishment entity - represents a school or educational institution
