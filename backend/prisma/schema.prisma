@@ -22,15 +22,38 @@ enum Priority {
 
 model User {
   id                   BigInt                  @id @default(autoincrement())
-  // Existing fields assumed here (e.g., email, name, etc.)
+  email                String                  @unique
+  password_hash        String?
+  name                 String?
+  role                 String                  @default("user")
+  is_active            Boolean                 @default(true)
+  google_id            String?                 @unique
+  last_login_at        DateTime?
+  password_reset_token String?
+  password_reset_expires DateTime?
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
 
   notifications        Notification[]
   notificationPreference NotificationPreference?
-  createdAnnouncements Announcement[]
+  createdAnnouncements Announcement[] @relation("createdAnnouncements")
+  sessions             Session[]
 
   @@map("users")
+}
+
+model Session {
+  id           BigInt    @id @default(autoincrement())
+  user_id      BigInt
+  token        String    @unique
+  ip_address   String?
+  user_agent   String?
+  expires_at   DateTime
+  created_at   DateTime  @default(now())
+
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
 }
 
 model Notification {
@@ -52,7 +75,7 @@ model Notification {
 
 model Announcement {
   id          BigInt          @id @default(autoincrement())
-  creatorId   BigInt
+  creatorId   BigInt?
   title       String
   content     String
   type        NotificationType
@@ -63,7 +86,7 @@ model Announcement {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  creator     User            @relation("createdAnnouncements", fields: [creatorId], references: [id], onDelete: SetNull)
+  creator     User?           @relation("createdAnnouncements", fields: [creatorId], references: [id], onDelete: SetNull)
 
   @@map("announcements")
 }
