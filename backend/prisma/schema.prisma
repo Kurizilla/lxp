@@ -38,15 +38,20 @@ enum Priority {
 model User {
   id                     BigInt                  @id @default(autoincrement())
   email                  String                  @unique @db.VarChar(255)
-  password_hash          String                  @db.VarChar(255)
-  first_name             String                  @db.VarChar(100)
-  last_name              String                  @db.VarChar(100)
+  password_hash          String?                 @db.VarChar(255)
+  first_name             String?                 @db.VarChar(100)
+  last_name              String?                 @db.VarChar(100)
   is_active              Boolean                 @default(true)
   email_verified         Boolean                 @default(false)
   email_verified_at      DateTime?
   last_login_at          DateTime?
   failed_login_attempts  Int                     @default(0)
   locked_until           DateTime?
+  // SSO fields
+  google_id              String?                 @unique @db.VarChar(255)
+  // Password recovery fields
+  password_reset_token   String?                 @db.VarChar(255)
+  password_reset_expires DateTime?
   created_at             DateTime                @default(now())
   updated_at             DateTime                @updatedAt
 
@@ -60,6 +65,7 @@ model User {
 
   @@index([email])
   @@index([is_active])
+  @@index([google_id])
   @@index([created_at])
   @@map("m01_users")
   @@schema("m01_establecimiento")
