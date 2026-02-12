@@ -1,9 +1,6 @@
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "m01_establecimiento";
 
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
-
 -- CreateEnum
 CREATE TYPE "public"."NotificationType" AS ENUM ('EMAIL', 'IN_APP', 'PUSH');
 
@@ -115,16 +112,16 @@ CREATE TABLE "public"."notifications" (
 -- CreateTable
 CREATE TABLE "public"."announcements" (
     "id" BIGSERIAL NOT NULL,
-    "creator_id" BIGINT,
+    "creatorId" BIGINT,
     "title" TEXT NOT NULL,
     "content" TEXT NOT NULL,
     "type" "public"."NotificationType" NOT NULL,
     "priority" "public"."Priority" NOT NULL,
-    "is_active" BOOLEAN NOT NULL DEFAULT true,
-    "published_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "expires_at" TIMESTAMP(3),
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "publishedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "announcements_pkey" PRIMARY KEY ("id")
 );
@@ -140,6 +137,63 @@ CREATE TABLE "public"."notification_preferences" (
     "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "notification_preferences_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "m01_establecimiento"."m01_establishments" (
+    "id" BIGSERIAL NOT NULL,
+    "name" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "address" TEXT,
+    "phone" TEXT,
+    "email" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "m01_establishments_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "m01_establecimiento"."m01_subjects" (
+    "id" BIGSERIAL NOT NULL,
+    "name" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "description" TEXT,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "m01_subjects_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "m01_establecimiento"."m01_classrooms" (
+    "id" BIGSERIAL NOT NULL,
+    "establishment_id" BIGINT NOT NULL,
+    "subject_id" BIGINT NOT NULL,
+    "name" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "capacity" INTEGER,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "m01_classrooms_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "m01_establecimiento"."m01_user_classrooms" (
+    "id" BIGSERIAL NOT NULL,
+    "user_id" BIGINT NOT NULL,
+    "classroom_id" BIGINT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'student',
+    "enrolled_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "is_active" BOOLEAN NOT NULL DEFAULT true,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "m01_user_classrooms_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -227,16 +281,58 @@ CREATE INDEX "notifications_is_read_idx" ON "public"."notifications"("is_read");
 CREATE INDEX "notifications_created_at_idx" ON "public"."notifications"("created_at");
 
 -- CreateIndex
-CREATE INDEX "announcements_creator_id_idx" ON "public"."announcements"("creator_id");
+CREATE INDEX "announcements_creatorId_idx" ON "public"."announcements"("creatorId");
 
 -- CreateIndex
-CREATE INDEX "announcements_is_active_idx" ON "public"."announcements"("is_active");
+CREATE INDEX "announcements_isActive_idx" ON "public"."announcements"("isActive");
 
 -- CreateIndex
-CREATE INDEX "announcements_published_at_idx" ON "public"."announcements"("published_at");
+CREATE INDEX "announcements_publishedAt_idx" ON "public"."announcements"("publishedAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "notification_preferences_user_id_key" ON "public"."notification_preferences"("user_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "m01_establishments_code_key" ON "m01_establecimiento"."m01_establishments"("code");
+
+-- CreateIndex
+CREATE INDEX "m01_establishments_code_idx" ON "m01_establecimiento"."m01_establishments"("code");
+
+-- CreateIndex
+CREATE INDEX "m01_establishments_is_active_idx" ON "m01_establecimiento"."m01_establishments"("is_active");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "m01_subjects_code_key" ON "m01_establecimiento"."m01_subjects"("code");
+
+-- CreateIndex
+CREATE INDEX "m01_subjects_code_idx" ON "m01_establecimiento"."m01_subjects"("code");
+
+-- CreateIndex
+CREATE INDEX "m01_subjects_is_active_idx" ON "m01_establecimiento"."m01_subjects"("is_active");
+
+-- CreateIndex
+CREATE INDEX "m01_classrooms_establishment_id_idx" ON "m01_establecimiento"."m01_classrooms"("establishment_id");
+
+-- CreateIndex
+CREATE INDEX "m01_classrooms_subject_id_idx" ON "m01_establecimiento"."m01_classrooms"("subject_id");
+
+-- CreateIndex
+CREATE INDEX "m01_classrooms_is_active_idx" ON "m01_establecimiento"."m01_classrooms"("is_active");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "m01_classrooms_establishment_id_code_key" ON "m01_establecimiento"."m01_classrooms"("establishment_id", "code");
+
+-- CreateIndex
+CREATE INDEX "m01_user_classrooms_user_id_idx" ON "m01_establecimiento"."m01_user_classrooms"("user_id");
+
+-- CreateIndex
+CREATE INDEX "m01_user_classrooms_classroom_id_idx" ON "m01_establecimiento"."m01_user_classrooms"("classroom_id");
+
+-- CreateIndex
+CREATE INDEX "m01_user_classrooms_is_active_idx" ON "m01_establecimiento"."m01_user_classrooms"("is_active");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "m01_user_classrooms_user_id_classroom_id_key" ON "m01_establecimiento"."m01_user_classrooms"("user_id", "classroom_id");
 
 -- AddForeignKey
 ALTER TABLE "m01_establecimiento"."m01_role_permissions" ADD CONSTRAINT "m01_role_permissions_role_id_fkey" FOREIGN KEY ("role_id") REFERENCES "m01_establecimiento"."m01_roles"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -257,8 +353,19 @@ ALTER TABLE "m01_establecimiento"."m01_sessions" ADD CONSTRAINT "m01_sessions_us
 ALTER TABLE "public"."notifications" ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "m01_establecimiento"."m01_users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."announcements" ADD CONSTRAINT "announcements_creator_id_fkey" FOREIGN KEY ("creator_id") REFERENCES "m01_establecimiento"."m01_users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."announcements" ADD CONSTRAINT "announcements_creatorId_fkey" FOREIGN KEY ("creatorId") REFERENCES "m01_establecimiento"."m01_users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "public"."notification_preferences" ADD CONSTRAINT "notification_preferences_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "m01_establecimiento"."m01_users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "m01_establecimiento"."m01_classrooms" ADD CONSTRAINT "m01_classrooms_establishment_id_fkey" FOREIGN KEY ("establishment_id") REFERENCES "m01_establecimiento"."m01_establishments"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "m01_establecimiento"."m01_classrooms" ADD CONSTRAINT "m01_classrooms_subject_id_fkey" FOREIGN KEY ("subject_id") REFERENCES "m01_establecimiento"."m01_subjects"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "m01_establecimiento"."m01_user_classrooms" ADD CONSTRAINT "m01_user_classrooms_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "m01_establecimiento"."m01_users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "m01_establecimiento"."m01_user_classrooms" ADD CONSTRAINT "m01_user_classrooms_classroom_id_fkey" FOREIGN KEY ("classroom_id") REFERENCES "m01_establecimiento"."m01_classrooms"("id") ON DELETE CASCADE ON UPDATE CASCADE;

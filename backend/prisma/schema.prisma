@@ -56,6 +56,7 @@ model User {
   created_announcements  Announcement[]          @relation("createdAnnouncements")
   user_roles             UserRole[]
   sessions               Session[]
+  userClassrooms         M01UserClassroom[]
 
   @@index([email])
   @@index([is_active])
@@ -110,10 +111,6 @@ model RolePermission {
   role_id       BigInt
   permission_id BigInt
   created_at    DateTime @default(now())
-  notifications        Notification[]
-  notificationPreference NotificationPreference?
-  createdAnnouncements Announcement[] @relation("createdAnnouncements")
-  userClassrooms       M01UserClassroom[]
 
   // Relations
   role       Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
@@ -215,11 +212,9 @@ model Announcement {
 
   creator     User?           @relation("createdAnnouncements", fields: [creatorId], references: [id], onDelete: SetNull)
 
-  creator User? @relation("createdAnnouncements", fields: [creator_id], references: [id], onDelete: SetNull)
-
-  @@index([creator_id])
-  @@index([is_active])
-  @@index([published_at])
+  @@index([creatorId])
+  @@index([isActive])
+  @@index([publishedAt])
   @@map("announcements")
   @@schema("public")
 }
@@ -236,6 +231,7 @@ model NotificationPreference {
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
+  @@schema("public")
 }
 
 // =============================================================================
@@ -269,6 +265,7 @@ model M01Establishment {
   @@index([code])
   @@index([is_active])
   @@map("m01_establishments")
+  @@schema("m01_establecimiento")
 }
 
 model M01Subject {
@@ -285,6 +282,7 @@ model M01Subject {
   @@index([code])
   @@index([is_active])
   @@map("m01_subjects")
+  @@schema("m01_establecimiento")
 }
 
 model M01Classroom {
@@ -307,6 +305,7 @@ model M01Classroom {
   @@index([subject_id])
   @@index([is_active])
   @@map("m01_classrooms")
+  @@schema("m01_establecimiento")
 }
 
 model M01UserClassroom {
@@ -327,4 +326,5 @@ model M01UserClassroom {
   @@index([classroom_id])
   @@index([is_active])
   @@map("m01_user_classrooms")
+  @@schema("m01_establecimiento")
 }
