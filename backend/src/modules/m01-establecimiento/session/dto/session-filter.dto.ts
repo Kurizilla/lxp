@@ -10,7 +10,7 @@ export class SessionFilterDto extends PaginationQueryDto {
   @IsOptional()
   @Transform(({ value }) => value === 'true')
   @IsBoolean()
-  is_active?: boolean;
+  is_valid?: boolean;
 
   @IsOptional()
   @IsString()

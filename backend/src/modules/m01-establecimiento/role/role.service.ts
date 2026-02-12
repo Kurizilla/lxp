@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ConflictException, Inject } from '@nestj
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { trace } from '@opentelemetry/api';
-import { PrismaService } from '../../../prisma';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 import { PaginatedResponseDto } from '../../../common/dto';
 import {
   CreateRoleDto,
@@ -47,11 +47,11 @@ export class RoleService {
           skip,
           take: limit,
           include: {
-            permissions: {
+            role_permissions: {
               include: { permission: true },
             },
           },
-          orderBy: { createdAt: 'desc' },
+          orderBy: { created_at: 'desc' },
         }),
         this.prisma.role.count({ where }),
       ]);
@@ -80,7 +80,7 @@ export class RoleService {
       const role = await this.prisma.role.findUnique({
         where: { id: BigInt(id) },
         include: {
-          permissions: {
+          role_permissions: {
             include: { permission: true },
           },
         },
@@ -117,7 +117,7 @@ export class RoleService {
           name: dto.name,
           description: dto.description,
           is_active: dto.is_active ?? true,
-          permissions: dto.permission_ids?.length
+          role_permissions: dto.permission_ids?.length
             ? {
                 create: dto.permission_ids.map((permissionId) => ({
                   permission: { connect: { id: BigInt(permissionId) } },
@@ -126,7 +126,7 @@ export class RoleService {
             : undefined,
         },
         include: {
-          permissions: {
+          role_permissions: {
             include: { permission: true },
           },
         },
@@ -194,7 +194,7 @@ export class RoleService {
         where: { id: BigInt(id) },
         data: updateData,
         include: {
-          permissions: {
+          role_permissions: {
             include: { permission: true },
           },
         },
@@ -274,7 +274,7 @@ export class RoleService {
       const updatedRole = await this.prisma.role.findUnique({
         where: { id: BigInt(roleId) },
         include: {
-          permissions: {
+          role_permissions: {
             include: { permission: true },
           },
         },
@@ -335,7 +335,7 @@ export class RoleService {
       const updatedRole = await this.prisma.role.findUnique({
         where: { id: BigInt(roleId) },
         include: {
-          permissions: {
+          role_permissions: {
             include: { permission: true },
           },
         },
@@ -388,7 +388,7 @@ export class RoleService {
       const updatedRole = await this.prisma.role.findUnique({
         where: { id: BigInt(roleId) },
         include: {
-          permissions: {
+          role_permissions: {
             include: { permission: true },
           },
         },

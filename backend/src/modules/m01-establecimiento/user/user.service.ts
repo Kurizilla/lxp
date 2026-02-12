@@ -2,10 +2,10 @@ import { Injectable, NotFoundException, ConflictException, Inject } from '@nestj
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { trace } from '@opentelemetry/api';
-import { PrismaService } from '../../../prisma';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 import { PaginatedResponseDto } from '../../../common/dto';
 import { CreateUserDto, UpdateUserDto, UserResponseDto, UserFilterDto } from './dto';
-import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -20,7 +20,7 @@ export class UserService {
     const span = this.tracer.startSpan('UserService.findAll');
 
     try {
-      const { page = 1, limit = 10, search, status, role_id } = filter;
+      const { page = 1, limit = 10, search, is_active, role_id } = filter;
       const skip = (page - 1) * limit;
 
       const where: any = {};
@@ -33,12 +33,16 @@ export class UserService {
         ];
       }
 
-      if (status) {
-        where.status = status;
+      if (is_active !== undefined) {
+        where.is_active = is_active;
       }
 
       if (role_id) {
-        where.role_id = BigInt(role_id);
+        where.user_roles = {
+          some: {
+            role_id: BigInt(role_id),
+          },
+        };
       }
 
       const [users, total] = await Promise.all([
@@ -46,8 +50,12 @@ export class UserService {
           where,
           skip,
           take: limit,
-          include: { role: true },
-          orderBy: { createdAt: 'desc' },
+          include: {
+            user_roles: {
+              include: { role: true },
+            },
+          },
+          orderBy: { created_at: 'desc' },
         }),
         this.prisma.user.count({ where }),
       ]);
@@ -56,7 +64,7 @@ export class UserService {
         total,
         page,
         limit,
-        filters: { search, status, role_id },
+        filters: { search, is_active, role_id },
       });
 
       const data = users.map(UserResponseDto.fromEntity);
@@ -75,7 +83,11 @@ export class UserService {
     try {
       const user = await this.prisma.user.findUnique({
         where: { id: BigInt(id) },
-        include: { role: true },
+        include: {
+          user_roles: {
+            include: { role: true },
+          },
+        },
       });
 
       if (!user) {
@@ -104,7 +116,7 @@ export class UserService {
         throw new ConflictException(`User with email ${dto.email} already exists`);
       }
 
-      const passwordHash = this.hashPassword(dto.password);
+      const passwordHash = await this.hashPassword(dto.password);
 
       const user = await this.prisma.user.create({
         data: {
@@ -112,10 +124,20 @@ export class UserService {
           password_hash: passwordHash,
           first_name: dto.first_name,
           last_name: dto.last_name,
-          status: dto.status || 'PENDING',
-          role_id: dto.role_id ? BigInt(dto.role_id) : null,
+          is_active: dto.is_active ?? true,
+          user_roles: dto.role_id
+            ? {
+                create: {
+                  role_id: BigInt(dto.role_id),
+                },
+              }
+            : undefined,
         },
-        include: { role: true },
+        include: {
+          user_roles: {
+            include: { role: true },
+          },
+        },
       });
 
       this.logger.info('User created successfully', {
@@ -158,18 +180,19 @@ export class UserService {
       if (dto.email !== undefined) updateData.email = dto.email;
       if (dto.first_name !== undefined) updateData.first_name = dto.first_name;
       if (dto.last_name !== undefined) updateData.last_name = dto.last_name;
-      if (dto.status !== undefined) updateData.status = dto.status;
-      if (dto.role_id !== undefined) {
-        updateData.role_id = dto.role_id !== null ? BigInt(dto.role_id) : null;
-      }
+      if (dto.is_active !== undefined) updateData.is_active = dto.is_active;
       if (dto.password !== undefined) {
-        updateData.password_hash = this.hashPassword(dto.password);
+        updateData.password_hash = await this.hashPassword(dto.password);
       }
 
       const user = await this.prisma.user.update({
         where: { id: BigInt(id) },
         data: updateData,
-        include: { role: true },
+        include: {
+          user_roles: {
+            include: { role: true },
+          },
+        },
       });
 
       this.logger.info('User updated successfully', { userId: id });
@@ -224,10 +247,34 @@ export class UserService {
         throw new NotFoundException(`Role with ID ${roleId} not found`);
       }
 
-      const updatedUser = await this.prisma.user.update({
+      // Check if role assignment already exists
+      const existingAssignment = await this.prisma.userRole.findUnique({
+        where: {
+          user_id_role_id: {
+            user_id: BigInt(userId),
+            role_id: BigInt(roleId),
+          },
+        },
+      });
+
+      if (existingAssignment) {
+        throw new ConflictException('User already has this role assigned');
+      }
+
+      await this.prisma.userRole.create({
+        data: {
+          user_id: BigInt(userId),
+          role_id: BigInt(roleId),
+        },
+      });
+
+      const updatedUser = await this.prisma.user.findUnique({
         where: { id: BigInt(userId) },
-        data: { role_id: BigInt(roleId) },
-        include: { role: true },
+        include: {
+          user_roles: {
+            include: { role: true },
+          },
+        },
       });
 
       this.logger.info('Role assigned to user', { userId, roleId });
@@ -240,25 +287,46 @@ export class UserService {
     }
   }
 
-  async removeRole(userId: string): Promise<UserResponseDto> {
+  async removeRole(userId: string, roleId?: string): Promise<UserResponseDto> {
     const span = this.tracer.startSpan('UserService.removeRole');
 
     try {
       const user = await this.prisma.user.findUnique({
         where: { id: BigInt(userId) },
+        include: { user_roles: true },
       });
 
       if (!user) {
         throw new NotFoundException(`User with ID ${userId} not found`);
       }
 
-      const updatedUser = await this.prisma.user.update({
+      if (roleId) {
+        // Remove specific role
+        await this.prisma.userRole.delete({
+          where: {
+            user_id_role_id: {
+              user_id: BigInt(userId),
+              role_id: BigInt(roleId),
+            },
+          },
+        });
+      } else {
+        // Remove all roles
+        await this.prisma.userRole.deleteMany({
+          where: { user_id: BigInt(userId) },
+        });
+      }
+
+      const updatedUser = await this.prisma.user.findUnique({
         where: { id: BigInt(userId) },
-        data: { role_id: null },
-        include: { role: true },
+        include: {
+          user_roles: {
+            include: { role: true },
+          },
+        },
       });
 
-      this.logger.info('Role removed from user', { userId });
+      this.logger.info('Role removed from user', { userId, roleId });
       span.end();
       return UserResponseDto.fromEntity(updatedUser);
     } catch (error) {
@@ -268,7 +336,7 @@ export class UserService {
     }
   }
 
-  private hashPassword(password: string): string {
-    return crypto.createHash('sha256').update(password).digest('hex');
+  private async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 10);
   }
 }

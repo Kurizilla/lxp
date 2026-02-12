@@ -20,8 +20,7 @@ import {
   AssignPermissionsDto,
 } from './dto';
 import { PaginatedResponseDto } from '../../../common/dto';
-import { JwtAuthGuard, RolesGuard } from '../../../common/guards';
-import { Roles } from '../../../common/decorators';
+import { JwtAuthGuard, RolesGuard, Roles } from '../auth/auth.guard';
 
 @Controller('api/v1/modules/m01/roles')
 @UseGuards(JwtAuthGuard, RolesGuard)

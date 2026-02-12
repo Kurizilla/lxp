@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { RoleService } from './role.service';
-import { PrismaService } from '../../../prisma';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 
 describe('RoleService', () => {
   let service: RoleService;
@@ -62,8 +62,9 @@ describe('RoleService', () => {
           id: BigInt(1),
           name: 'admin_nacional',
           description: 'National administrator',
+          is_system: false,
           is_active: true,
-          permissions: [
+          role_permissions: [
             {
               permission: {
                 id: BigInt(1),
@@ -73,8 +74,8 @@ describe('RoleService', () => {
               },
             },
           ],
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          created_at: new Date(),
+          updated_at: new Date(),
         },
       ];
 
@@ -96,10 +97,11 @@ describe('RoleService', () => {
         id: BigInt(1),
         name: 'admin_nacional',
         description: 'National administrator',
+        is_system: false,
         is_active: true,
-        permissions: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        role_permissions: [],
+        created_at: new Date(),
+        updated_at: new Date(),
       };
 
       mockPrismaService.role.findUnique.mockResolvedValue(mockRole);
@@ -127,10 +129,11 @@ describe('RoleService', () => {
         id: BigInt(1),
         name: createDto.name,
         description: createDto.description,
+        is_system: false,
         is_active: true,
-        permissions: [],
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        role_permissions: [],
+        created_at: new Date(),
+        updated_at: new Date(),
       };
 
       mockPrismaService.role.findUnique.mockResolvedValue(null);
@@ -161,9 +164,10 @@ describe('RoleService', () => {
         id: BigInt(1),
         name: 'admin',
         description: null,
+        is_system: false,
         is_active: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        created_at: new Date(),
+        updated_at: new Date(),
       };
 
       const mockPermissions = [
@@ -173,7 +177,7 @@ describe('RoleService', () => {
 
       const mockUpdatedRole = {
         ...mockRole,
-        permissions: mockPermissions.map((p) => ({
+        role_permissions: mockPermissions.map((p) => ({
           permission: p,
         })),
       };

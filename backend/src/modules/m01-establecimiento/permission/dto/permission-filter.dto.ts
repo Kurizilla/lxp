@@ -1,5 +1,4 @@
-import { IsOptional, IsString, IsBoolean } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { IsOptional, IsString } from 'class-validator';
 import { PaginationQueryDto } from '../../../../common/dto';
 
 export class PermissionFilterDto extends PaginationQueryDto {
@@ -14,9 +13,4 @@ export class PermissionFilterDto extends PaginationQueryDto {
   @IsOptional()
   @IsString()
   action?: string;
-
-  @IsOptional()
-  @Transform(({ value }) => value === 'true')
-  @IsBoolean()
-  is_active?: boolean;
 }

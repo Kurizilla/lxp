@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { SessionService } from './session.service';
-import { PrismaService } from '../../../prisma';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 
 describe('SessionService', () => {
   let service: SessionService;
@@ -56,11 +56,11 @@ describe('SessionService', () => {
           token: 'token123',
           ip_address: '192.168.1.1',
           user_agent: 'Mozilla/5.0',
-          is_active: true,
+          is_valid: true,
           expires_at: new Date(Date.now() + 86400000),
           last_activity: new Date(),
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          created_at: new Date(),
+          updated_at: new Date(),
           user: {
             id: BigInt(1),
             email: 'test@example.com',
@@ -85,17 +85,17 @@ describe('SessionService', () => {
     it('should terminate a session', async () => {
       const mockSession = {
         id: BigInt(1),
-        is_active: true,
+        is_valid: true,
       };
 
       mockPrismaService.session.findUnique.mockResolvedValue(mockSession);
-      mockPrismaService.session.update.mockResolvedValue({ ...mockSession, is_active: false });
+      mockPrismaService.session.update.mockResolvedValue({ ...mockSession, is_valid: false });
 
       await expect(service.terminate('1')).resolves.not.toThrow();
 
       expect(mockPrismaService.session.update).toHaveBeenCalledWith({
         where: { id: BigInt(1) },
-        data: { is_active: false },
+        data: { is_valid: false },
       });
     });
 

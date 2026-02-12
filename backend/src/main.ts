@@ -14,7 +14,8 @@ async function bootstrap() {
   const logger = app.get(WINSTON_MODULE_NEST_PROVIDER);
   app.useLogger(logger);
 
-  // Global validation pipe
+  app.setGlobalPrefix('api');
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -35,7 +36,6 @@ async function bootstrap() {
   // Enable CORS
   app.enableCors();
 
-  // API versioning prefix is handled by controllers
   await app.listen(process.env.PORT ?? 3000);
 
   logger.log(`Application is running on: ${await app.getUrl()}`);

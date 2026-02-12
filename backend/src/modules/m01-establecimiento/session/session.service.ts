@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { trace } from '@opentelemetry/api';
-import { PrismaService } from '../../../prisma';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 import { PaginatedResponseDto } from '../../../common/dto';
 import {
   SessionResponseDto,
@@ -24,7 +24,7 @@ export class SessionService {
     const span = this.tracer.startSpan('SessionService.findAll');
 
     try {
-      const { page = 1, limit = 10, user_id, is_active, search } = filter;
+      const { page = 1, limit = 10, user_id, is_valid, search } = filter;
       const skip = (page - 1) * limit;
 
       const where: any = {};
@@ -33,8 +33,8 @@ export class SessionService {
         where.user_id = BigInt(user_id);
       }
 
-      if (is_active !== undefined) {
-        where.is_active = is_active;
+      if (is_valid !== undefined) {
+        where.is_valid = is_valid;
       }
 
       if (search) {
@@ -62,7 +62,7 @@ export class SessionService {
         total,
         page,
         limit,
-        filters: { user_id, is_active, search },
+        filters: { user_id, is_valid, search },
       });
 
       const data = sessions.map(SessionResponseDto.fromEntity);
@@ -131,7 +131,7 @@ export class SessionService {
       const [sessions, total] = await Promise.all([
         this.prisma.session.findMany({
           where: {
-            is_active: true,
+            is_valid: true,
             expires_at: { gt: now },
           },
           include: { user: true },
@@ -139,7 +139,7 @@ export class SessionService {
         }),
         this.prisma.session.count({
           where: {
-            is_active: true,
+            is_valid: true,
             expires_at: { gt: now },
           },
         }),
@@ -174,7 +174,7 @@ export class SessionService {
 
       await this.prisma.session.update({
         where: { id: BigInt(sessionId) },
-        data: { is_active: false },
+        data: { is_valid: false },
       });
 
       this.logger.info('Session terminated successfully', { sessionId });
@@ -195,9 +195,9 @@ export class SessionService {
       const result = await this.prisma.session.updateMany({
         where: {
           id: { in: sessionIds },
-          is_active: true,
+          is_valid: true,
         },
-        data: { is_active: false },
+        data: { is_valid: false },
       });
 
       this.logger.info('Multiple sessions terminated successfully', {
@@ -231,7 +231,7 @@ export class SessionService {
 
       const where: any = {
         user_id: BigInt(userId),
-        is_active: true,
+        is_valid: true,
       };
 
       if (dto?.exclude_session_id) {
@@ -240,7 +240,7 @@ export class SessionService {
 
       const result = await this.prisma.session.updateMany({
         where,
-        data: { is_active: false },
+        data: { is_valid: false },
       });
 
       this.logger.info('User sessions terminated successfully', {
@@ -263,8 +263,8 @@ export class SessionService {
 
     try {
       const result = await this.prisma.session.updateMany({
-        where: { is_active: true },
-        data: { is_active: false },
+        where: { is_valid: true },
+        data: { is_valid: false },
       });
 
       this.logger.info('All sessions terminated successfully', {
@@ -288,7 +288,7 @@ export class SessionService {
 
       const result = await this.prisma.session.deleteMany({
         where: {
-          OR: [{ expires_at: { lt: now } }, { is_active: false }],
+          OR: [{ expires_at: { lt: now } }, { is_valid: false }],
         },
       });
 
@@ -319,7 +319,7 @@ export class SessionService {
         this.prisma.session.count(),
         this.prisma.session.count({
           where: {
-            is_active: true,
+            is_valid: true,
             expires_at: { gt: now },
           },
         }),

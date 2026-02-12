@@ -4,7 +4,6 @@ export class PermissionResponseDto {
   description: string | null;
   resource: string;
   action: string;
-  is_active: boolean;
   created_at: Date;
   updated_at: Date;
 
@@ -15,9 +14,8 @@ export class PermissionResponseDto {
       description: permission.description,
       resource: permission.resource,
       action: permission.action,
-      is_active: permission.is_active,
-      created_at: permission.createdAt,
-      updated_at: permission.updatedAt,
+      created_at: permission.created_at,
+      updated_at: permission.updated_at,
     };
   }
 }

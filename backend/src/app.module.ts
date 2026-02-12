@@ -1,12 +1,11 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
+import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
 import { WinstonModule } from 'nest-winston';
 import * as winston from 'winston';
-import { PrismaModule } from './prisma';
-import { M01EstablecimientoModule } from './modules/m01-establecimiento';
-import { JwtStrategy } from './common/strategies';
+import { PrismaModule } from './common/prisma/prisma.module';
+import { M01EstablecimientoModule } from './modules/m01-establecimiento/m01-establecimiento.module';
+import { JwtAuthGuard } from './modules/m01-establecimiento/auth/auth.guard';
 
 @Module({
   imports: [
@@ -22,21 +21,15 @@ import { JwtStrategy } from './common/strategies';
       ],
       level: process.env.LOG_LEVEL || 'info',
     }),
-    PassportModule.register({ defaultStrategy: 'jwt' }),
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      useFactory: async (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET') || 'default-secret-change-in-production',
-        signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '1d',
-        },
-      }),
-      inject: [ConfigService],
-    }),
     PrismaModule,
     M01EstablecimientoModule,
   ],
   controllers: [],
-  providers: [JwtStrategy],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: JwtAuthGuard,
+    },
+  ],
 })
 export class AppModule {}

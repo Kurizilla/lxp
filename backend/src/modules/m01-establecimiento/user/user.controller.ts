@@ -14,8 +14,7 @@ import {
 import { UserService } from './user.service';
 import { CreateUserDto, UpdateUserDto, UserResponseDto, UserFilterDto } from './dto';
 import { PaginatedResponseDto } from '../../../common/dto';
-import { JwtAuthGuard, RolesGuard } from '../../../common/guards';
-import { Roles } from '../../../common/decorators';
+import { JwtAuthGuard, RolesGuard, Roles } from '../auth/auth.guard';
 
 @Controller('api/v1/modules/m01/users')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -63,9 +62,12 @@ export class UserController {
     return this.userService.assignRole(userId, roleId);
   }
 
-  @Delete(':id/role')
+  @Delete(':id/role/:roleId')
   @Roles('admin_nacional')
-  async removeRole(@Param('id') userId: string): Promise<UserResponseDto> {
-    return this.userService.removeRole(userId);
+  async removeRole(
+    @Param('id') userId: string,
+    @Param('roleId') roleId: string,
+  ): Promise<UserResponseDto> {
+    return this.userService.removeRole(userId, roleId);
   }
 }

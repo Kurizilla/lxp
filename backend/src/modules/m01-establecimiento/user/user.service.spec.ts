@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { UserService } from './user.service';
-import { PrismaService } from '../../../prisma';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 
 describe('UserService', () => {
   let service: UserService;
@@ -17,6 +17,12 @@ describe('UserService', () => {
     },
     role: {
       findUnique: jest.fn(),
+    },
+    userRole: {
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      delete: jest.fn(),
+      deleteMany: jest.fn(),
     },
   };
 
@@ -55,11 +61,19 @@ describe('UserService', () => {
           email: 'test@example.com',
           first_name: 'Test',
           last_name: 'User',
-          status: 'ACTIVE',
-          role_id: BigInt(1),
-          role: { name: 'admin' },
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          is_active: true,
+          email_verified: false,
+          last_login_at: null,
+          user_roles: [
+            {
+              id: BigInt(1),
+              role_id: BigInt(1),
+              assigned_at: new Date(),
+              role: { name: 'admin' },
+            },
+          ],
+          created_at: new Date(),
+          updated_at: new Date(),
         },
       ];
 
@@ -75,15 +89,15 @@ describe('UserService', () => {
       expect(result.data[0].email).toBe('test@example.com');
     });
 
-    it('should filter by status', async () => {
+    it('should filter by is_active', async () => {
       mockPrismaService.user.findMany.mockResolvedValue([]);
       mockPrismaService.user.count.mockResolvedValue(0);
 
-      await service.findAll({ page: 1, limit: 10, status: 'ACTIVE' });
+      await service.findAll({ page: 1, limit: 10, is_active: true });
 
       expect(mockPrismaService.user.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: expect.objectContaining({ status: 'ACTIVE' }),
+          where: expect.objectContaining({ is_active: true }),
         }),
       );
     });
@@ -96,11 +110,12 @@ describe('UserService', () => {
         email: 'test@example.com',
         first_name: 'Test',
         last_name: 'User',
-        status: 'ACTIVE',
-        role_id: BigInt(1),
-        role: { name: 'admin' },
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        is_active: true,
+        email_verified: false,
+        last_login_at: null,
+        user_roles: [],
+        created_at: new Date(),
+        updated_at: new Date(),
       };
 
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
@@ -131,11 +146,12 @@ describe('UserService', () => {
         email: createDto.email,
         first_name: createDto.first_name,
         last_name: createDto.last_name,
-        status: 'PENDING',
-        role_id: null,
-        role: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        is_active: true,
+        email_verified: false,
+        last_login_at: null,
+        user_roles: [],
+        created_at: new Date(),
+        updated_at: new Date(),
       };
 
       mockPrismaService.user.findUnique.mockResolvedValue(null);
@@ -173,11 +189,12 @@ describe('UserService', () => {
       const updatedUser = {
         ...existingUser,
         first_name: 'Updated',
-        status: 'ACTIVE',
-        role_id: null,
-        role: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        is_active: true,
+        email_verified: false,
+        last_login_at: null,
+        user_roles: [],
+        created_at: new Date(),
+        updated_at: new Date(),
       };
 
       mockPrismaService.user.findUnique

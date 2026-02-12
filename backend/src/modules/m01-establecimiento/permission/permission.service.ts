@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ConflictException, Inject } from '@nestj
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { trace } from '@opentelemetry/api';
-import { PrismaService } from '../../../prisma';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 import { PaginatedResponseDto } from '../../../common/dto';
 import {
   CreatePermissionDto,
@@ -24,7 +24,7 @@ export class PermissionService {
     const span = this.tracer.startSpan('PermissionService.findAll');
 
     try {
-      const { page = 1, limit = 10, search, resource, action, is_active } = filter;
+      const { page = 1, limit = 10, search, resource, action } = filter;
       const skip = (page - 1) * limit;
 
       const where: any = {};
@@ -44,16 +44,12 @@ export class PermissionService {
         where.action = action;
       }
 
-      if (is_active !== undefined) {
-        where.is_active = is_active;
-      }
-
       const [permissions, total] = await Promise.all([
         this.prisma.permission.findMany({
           where,
           skip,
           take: limit,
-          orderBy: { createdAt: 'desc' },
+          orderBy: { created_at: 'desc' },
         }),
         this.prisma.permission.count({ where }),
       ]);
@@ -62,7 +58,7 @@ export class PermissionService {
         total,
         page,
         limit,
-        filters: { search, resource, action, is_active },
+        filters: { search, resource, action },
       });
 
       const data = permissions.map(PermissionResponseDto.fromEntity);
@@ -115,7 +111,6 @@ export class PermissionService {
           description: dto.description,
           resource: dto.resource,
           action: dto.action,
-          is_active: dto.is_active ?? true,
         },
       });
 
@@ -159,7 +154,6 @@ export class PermissionService {
       if (dto.description !== undefined) updateData.description = dto.description;
       if (dto.resource !== undefined) updateData.resource = dto.resource;
       if (dto.action !== undefined) updateData.action = dto.action;
-      if (dto.is_active !== undefined) updateData.is_active = dto.is_active;
 
       const permission = await this.prisma.permission.update({
         where: { id: BigInt(id) },

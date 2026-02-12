@@ -1,5 +1,5 @@
-import { IsOptional, IsString, IsEnum } from 'class-validator';
-import { UserStatus } from '@prisma/client';
+import { IsOptional, IsString, IsBoolean } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { PaginationQueryDto } from '../../../../common/dto';
 
 export class UserFilterDto extends PaginationQueryDto {
@@ -8,8 +8,9 @@ export class UserFilterDto extends PaginationQueryDto {
   search?: string;
 
   @IsOptional()
-  @IsEnum(UserStatus)
-  status?: UserStatus;
+  @Transform(({ value }) => value === 'true')
+  @IsBoolean()
+  is_active?: boolean;
 
   @IsOptional()
   @IsString()
