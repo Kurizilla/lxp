@@ -3,44 +3,38 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting database seed...');
+  console.log('Seeding default roles...');
 
-  // Default roles as per DoD requirements
+  // Default roles as per Definition of Done
   const defaultRoles = [
     {
       name: 'admin_nacional',
-      display_name: 'Administrador Nacional',
-      description: 'Full system administrator with access to all features and settings at the national level',
+      description: 'Administrador Nacional - Acceso total al sistema',
       is_system: true,
       is_active: true,
     },
     {
       name: 'admin_institucional',
-      display_name: 'Administrador Institucional',
-      description: 'Institutional administrator with access to manage their assigned institution',
+      description: 'Administrador Institucional - Gestión de institución específica',
       is_system: true,
       is_active: true,
     },
     {
       name: 'docente',
-      display_name: 'Docente',
-      description: 'Teacher role with access to teaching-related features and student management',
+      description: 'Docente - Gestión de cursos y evaluaciones',
       is_system: true,
       is_active: true,
     },
     {
       name: 'estudiante',
-      display_name: 'Estudiante',
-      description: 'Student role with access to learning materials and personal academic data',
+      description: 'Estudiante - Acceso a recursos educativos',
       is_system: true,
       is_active: true,
     },
   ];
 
-  console.log('📝 Creating default roles...');
-
   for (const role of defaultRoles) {
-    const existingRole = await prisma.m01Role.findUnique({
+    const existingRole = await prisma.role.findUnique({
       where: { name: role.name },
     });
 
