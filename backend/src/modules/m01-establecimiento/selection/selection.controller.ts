@@ -1,20 +1,10 @@
-import {
-  Controller,
-  Get,
-  Param,
-  Query,
-  UseGuards,
-  NotFoundException,
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, NotFoundException, ParseIntPipe } from '@nestjs/common';
 import { SelectionService } from './selection.service';
 import { MyInstitutionsQueryDto, MyInstitutionsResponseDto } from './dto';
 import { InstitutionDto } from '../common/dto';
-import { JwtAuthGuard } from '../../../common/guards';
 import { CurrentUser, CurrentUserPayload } from '../../../common/decorators';
 
 @Controller('v1/modules/m01/selection')
-@UseGuards(JwtAuthGuard)
 export class SelectionController {
   constructor(private readonly selectionService: SelectionService) {}
 
@@ -39,10 +29,7 @@ export class SelectionController {
     @CurrentUser() user: CurrentUserPayload,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<InstitutionDto> {
-    const institution = await this.selectionService.getInstitutionById(
-      user.userId,
-      id,
-    );
+    const institution = await this.selectionService.getInstitutionById(user.userId, id);
 
     if (!institution) {
       throw new NotFoundException({

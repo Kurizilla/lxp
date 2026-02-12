@@ -85,10 +85,7 @@ export class SelectionService {
   /**
    * Get a specific institution by ID for the user
    */
-  async getInstitutionById(
-    userId: bigint,
-    institutionId: number,
-  ): Promise<InstitutionDto | null> {
+  async getInstitutionById(userId: bigint, institutionId: number): Promise<InstitutionDto | null> {
     // Stub implementation - would verify user has access to this institution
     const institutions = await this.getMyInstitutions(userId, { page: 1, limit: 100 });
     return institutions.data.find((inst) => inst.id === institutionId) || null;

@@ -10,10 +10,7 @@ export class AssistantService {
    * This is a stub implementation that returns predefined responses
    * In production, this would call an actual LLM API
    */
-  async query(
-    userId: bigint,
-    queryDto: AssistantQueryDto,
-  ): Promise<AssistantResponseDto> {
+  async query(userId: bigint, queryDto: AssistantQueryDto): Promise<AssistantResponseDto> {
     const { query, institutionId, classroomId } = queryDto;
 
     this.logger.log(
@@ -61,11 +58,19 @@ export class AssistantService {
       return `${contextInfo}Para registrar asistencia, dirígete a la sección "Asistencia" en el menú principal. Allí podrás marcar la asistencia diaria de los estudiantes y ver el historial de asistencia.`;
     }
 
-    if (queryLower.includes('calificacion') || queryLower.includes('nota') || queryLower.includes('grade')) {
+    if (
+      queryLower.includes('calificacion') ||
+      queryLower.includes('nota') ||
+      queryLower.includes('grade')
+    ) {
       return `${contextInfo}Las calificaciones se pueden ingresar desde la sección "Evaluaciones". Selecciona la asignatura y el tipo de evaluación para registrar las notas de los estudiantes.`;
     }
 
-    if (queryLower.includes('estudiante') || queryLower.includes('alumno') || queryLower.includes('student')) {
+    if (
+      queryLower.includes('estudiante') ||
+      queryLower.includes('alumno') ||
+      queryLower.includes('student')
+    ) {
       return `${contextInfo}Puedes ver la lista de estudiantes en la sección "Estudiantes". Desde ahí puedes acceder al perfil individual de cada estudiante con su información académica y personal.`;
     }
 
@@ -73,7 +78,11 @@ export class AssistantService {
       return `${contextInfo}El horario de clases está disponible en la sección "Horarios". Puedes ver el horario semanal y cualquier cambio programado.`;
     }
 
-    if (queryLower.includes('comunicado') || queryLower.includes('mensaje') || queryLower.includes('message')) {
+    if (
+      queryLower.includes('comunicado') ||
+      queryLower.includes('mensaje') ||
+      queryLower.includes('message')
+    ) {
       return `${contextInfo}Para enviar comunicados, utiliza la sección "Comunicaciones". Puedes enviar mensajes a apoderados individuales o a toda la comunidad escolar.`;
     }
 

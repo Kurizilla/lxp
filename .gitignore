@@ -1,14 +1,26 @@
 # Dependencies
 node_modules/
+.pnp
+.pnp.js
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Build output
 dist/
 build/
 
-# Environment files
-.env
-.env.local
-.env.*.local
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # IDE
 .idea/
@@ -16,17 +28,11 @@ build/
 *.swp
 *.swo
 
-# Logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# OS files
+# OS
 .DS_Store
 Thumbs.db
 
-# Test coverage
+# Test
 coverage/
 
 # Prisma
