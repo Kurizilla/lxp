@@ -176,7 +176,7 @@ model Session {
 }
 
 // =============================================================================
-// NOTIFICATION MODULE (existing models, moved to public schema)
+// NOTIFICATION MODULE (existing models moved to public schema)
 // =============================================================================
 
 model Notification {

@@ -39,24 +39,23 @@ async function main() {
     });
 
     if (!existingRole) {
-      await prisma.role.create({
+      await prisma.m01Role.create({
         data: role,
       });
-      console.log(`Created role: ${role.name}`);
+      console.log(`  ✅ Created role: ${role.name}`);
     } else {
-      console.log(`Role already exists: ${role.name}`);
+      console.log(`  ⏭️  Role already exists: ${role.name}`);
     }
   }
 
-  console.log('Seeding completed.');
+  console.log('🌱 Database seed completed successfully!');
 }
 
 main()
-  .then(async () => {
-    await prisma.$disconnect();
-  })
-  .catch(async (e) => {
-    console.error(e);
-    await prisma.$disconnect();
+  .catch((e) => {
+    console.error('❌ Seed failed:', e);
     process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
   });
