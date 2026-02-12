@@ -26,8 +26,9 @@ describe('AuthService', () => {
     session: {
       create: jest.fn(),
       findUnique: jest.fn(),
-      deleteMany: jest.fn(),
       findMany: jest.fn(),
+      update: jest.fn(),
+      updateMany: jest.fn(),
     },
   };
 
@@ -40,15 +41,22 @@ describe('AuthService', () => {
     id: BigInt(1),
     email: 'test@example.com',
     password_hash: 'hashedpassword',
-    name: 'Test User',
-    role: 'user',
+    first_name: 'Test',
+    last_name: 'User',
     is_active: true,
-    google_id: null,
+    email_verified: false,
+    email_verified_at: null,
     last_login_at: null,
+    failed_login_attempts: 0,
+    locked_until: null,
+    google_id: null,
     password_reset_token: null,
     password_reset_expires: null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
+    created_at: new Date(),
+    updated_at: new Date(),
+    user_roles: [
+      { role: { name: 'user' } },
+    ],
   };
 
   beforeEach(async () => {
@@ -106,6 +114,7 @@ describe('AuthService', () => {
     it('should throw UnauthorizedException on invalid password', async () => {
       mockPrismaService.user.findUnique.mockResolvedValue(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      mockPrismaService.user.update.mockResolvedValue(mockUser);
 
       await expect(
         service.login({ email: 'test@example.com', password: 'wrongpassword' }),
@@ -116,6 +125,17 @@ describe('AuthService', () => {
       mockPrismaService.user.findUnique.mockResolvedValue({
         ...mockUser,
         is_active: false,
+      });
+
+      await expect(
+        service.login({ email: 'test@example.com', password: 'password123' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw UnauthorizedException on locked account', async () => {
+      mockPrismaService.user.findUnique.mockResolvedValue({
+        ...mockUser,
+        locked_until: new Date(Date.now() + 3600000), // locked for 1 hour
       });
 
       await expect(
@@ -228,8 +248,11 @@ describe('AuthService', () => {
         user_id: BigInt(1),
         ip_address: '127.0.0.1',
         user_agent: 'Test Agent',
+        is_valid: true,
         expires_at: new Date(),
+        last_activity: new Date(),
         created_at: new Date(),
+        updated_at: new Date(),
       });
 
       const result = await service.createSession(
@@ -245,9 +268,13 @@ describe('AuthService', () => {
     it('should validate a valid session', async () => {
       const futureDate = new Date(Date.now() + 3600000);
       mockPrismaService.session.findUnique.mockResolvedValue({
+        id: BigInt(1),
         user_id: BigInt(1),
+        is_valid: true,
         expires_at: futureDate,
+        last_activity: new Date(),
       });
+      mockPrismaService.session.update.mockResolvedValue({});
 
       const result = await service.validateSession('valid-token');
 
@@ -258,10 +285,23 @@ describe('AuthService', () => {
       const pastDate = new Date(Date.now() - 3600000);
       mockPrismaService.session.findUnique.mockResolvedValue({
         user_id: BigInt(1),
+        is_valid: true,
         expires_at: pastDate,
       });
 
       const result = await service.validateSession('expired-token');
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null for invalid session', async () => {
+      mockPrismaService.session.findUnique.mockResolvedValue({
+        user_id: BigInt(1),
+        is_valid: false,
+        expires_at: new Date(Date.now() + 3600000),
+      });
+
+      const result = await service.validateSession('invalid-token');
 
       expect(result).toBeNull();
     });
@@ -275,22 +315,24 @@ describe('AuthService', () => {
     });
 
     it('should revoke a session', async () => {
-      mockPrismaService.session.deleteMany.mockResolvedValue({ count: 1 });
+      mockPrismaService.session.updateMany.mockResolvedValue({ count: 1 });
 
       await service.revokeSession('session-token');
 
-      expect(mockPrismaService.session.deleteMany).toHaveBeenCalledWith({
+      expect(mockPrismaService.session.updateMany).toHaveBeenCalledWith({
         where: { token: 'session-token' },
+        data: { is_valid: false },
       });
     });
 
     it('should revoke all user sessions', async () => {
-      mockPrismaService.session.deleteMany.mockResolvedValue({ count: 3 });
+      mockPrismaService.session.updateMany.mockResolvedValue({ count: 3 });
 
       await service.revokeAllUserSessions(BigInt(1));
 
-      expect(mockPrismaService.session.deleteMany).toHaveBeenCalledWith({
+      expect(mockPrismaService.session.updateMany).toHaveBeenCalledWith({
         where: { user_id: BigInt(1) },
+        data: { is_valid: false },
       });
     });
 
@@ -302,6 +344,7 @@ describe('AuthService', () => {
           user_agent: 'Test Agent',
           created_at: new Date(),
           expires_at: new Date(),
+          last_activity: new Date(),
         },
       ]);
 
@@ -322,6 +365,7 @@ describe('AuthService', () => {
         email: 'test@example.com',
         name: 'Test User',
         role: 'user',
+        roles: ['user'],
       });
     });
 

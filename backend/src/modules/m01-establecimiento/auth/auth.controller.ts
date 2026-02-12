@@ -102,6 +102,7 @@ export class AuthController {
         userAgent: session.user_agent,
         createdAt: session.created_at,
         expiresAt: session.expires_at,
+        lastActivity: session.last_activity,
       })),
     };
   }

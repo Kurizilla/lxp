@@ -36,6 +36,13 @@ export class AuthService {
 
     const user = await this.prisma.user.findUnique({
       where: { email },
+      include: {
+        user_roles: {
+          include: {
+            role: true,
+          },
+        },
+      },
     });
 
     if (!user || !user.password_hash) {
@@ -52,19 +59,43 @@ export class AuthService {
       });
     }
 
+    // Check if account is locked
+    if (user.locked_until && user.locked_until > new Date()) {
+      throw new UnauthorizedException({
+        code: 'ACCOUNT_LOCKED',
+        message: 'Account is temporarily locked. Please try again later.',
+      });
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password_hash);
 
     if (!isPasswordValid) {
+      // Increment failed login attempts
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          failed_login_attempts: user.failed_login_attempts + 1,
+          // Lock account after 5 failed attempts for 15 minutes
+          locked_until: user.failed_login_attempts >= 4
+            ? new Date(Date.now() + 15 * 60 * 1000)
+            : null,
+        },
+      });
+
       throw new UnauthorizedException({
         code: 'INVALID_CREDENTIALS',
         message: 'Invalid email or password',
       });
     }
 
-    // Update last login
+    // Reset failed login attempts and update last login
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { last_login_at: new Date() },
+      data: {
+        last_login_at: new Date(),
+        failed_login_attempts: 0,
+        locked_until: null,
+      },
     });
 
     return this.generateAuthResponse(user);
@@ -88,12 +119,25 @@ export class AuthService {
     // Hash password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
+    // Parse name into first_name and last_name
+    const nameParts = name ? name.trim().split(' ') : [];
+    const firstName = nameParts[0] || null;
+    const lastName = nameParts.slice(1).join(' ') || null;
+
     // Create user
     const user = await this.prisma.user.create({
       data: {
         email,
         password_hash: passwordHash,
-        name,
+        first_name: firstName,
+        last_name: lastName,
+      },
+      include: {
+        user_roles: {
+          include: {
+            role: true,
+          },
+        },
       },
     });
 
@@ -159,6 +203,9 @@ export class AuthService {
         password_hash: passwordHash,
         password_reset_token: null,
         password_reset_expires: null,
+        // Reset failed login attempts on password reset
+        failed_login_attempts: 0,
+        locked_until: null,
       },
     });
 
@@ -199,6 +246,8 @@ export class AuthService {
         ip_address: ipAddress,
         user_agent: userAgent,
         expires_at: expiresAt,
+        is_valid: true,
+        last_activity: new Date(),
       },
     });
 
@@ -210,34 +259,46 @@ export class AuthService {
       where: { token },
     });
 
-    if (!session || session.expires_at < new Date()) {
+    if (!session || !session.is_valid || session.expires_at < new Date()) {
       return null;
     }
+
+    // Update last activity
+    await this.prisma.session.update({
+      where: { id: session.id },
+      data: { last_activity: new Date() },
+    });
 
     return { userId: session.user_id };
   }
 
   async revokeSession(token: string): Promise<void> {
-    await this.prisma.session.deleteMany({
+    await this.prisma.session.updateMany({
       where: { token },
+      data: { is_valid: false },
     });
   }
 
   async revokeAllUserSessions(userId: bigint): Promise<void> {
-    await this.prisma.session.deleteMany({
+    await this.prisma.session.updateMany({
       where: { user_id: userId },
+      data: { is_valid: false },
     });
   }
 
   async getUserSessions(userId: bigint) {
     return this.prisma.session.findMany({
-      where: { user_id: userId },
+      where: {
+        user_id: userId,
+        is_valid: true,
+      },
       select: {
         id: true,
         ip_address: true,
         user_agent: true,
         created_at: true,
         expires_at: true,
+        last_activity: true,
       },
     });
   }
@@ -245,30 +306,46 @@ export class AuthService {
   async validateUser(userId: bigint) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      include: {
+        user_roles: {
+          include: {
+            role: true,
+          },
+        },
+      },
     });
 
     if (!user || !user.is_active) {
       return null;
     }
 
+    const roles = user.user_roles.map((ur) => ur.role.name);
+    const primaryRole = roles[0] || 'user';
+
     return {
       id: user.id.toString(),
       email: user.email,
-      name: user.name,
-      role: user.role,
+      name: [user.first_name, user.last_name].filter(Boolean).join(' ') || null,
+      role: primaryRole,
+      roles,
     };
   }
 
   private generateAuthResponse(user: {
     id: bigint;
     email: string;
-    name: string | null;
-    role: string;
+    first_name: string | null;
+    last_name: string | null;
+    user_roles: Array<{ role: { name: string } }>;
   }): AuthResponseDto {
+    const roles = user.user_roles.map((ur) => ur.role.name);
+    const primaryRole = roles[0] || 'user';
+
     const payload = {
       sub: user.id.toString(),
       email: user.email,
-      role: user.role,
+      role: primaryRole,
+      roles,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -279,11 +356,13 @@ export class AuthService {
       tokenType: 'Bearer',
     };
 
+    const name = [user.first_name, user.last_name].filter(Boolean).join(' ') || undefined;
+
     const userResponse: UserResponseDto = {
       id: user.id.toString(),
       email: user.email,
-      name: user.name ?? undefined,
-      role: user.role,
+      name,
+      role: primaryRole,
     };
 
     return {

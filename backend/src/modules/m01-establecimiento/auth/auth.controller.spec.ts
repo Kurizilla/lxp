@@ -189,6 +189,7 @@ describe('AuthController', () => {
           user_agent: 'Test Agent',
           created_at: new Date('2024-01-01'),
           expires_at: new Date('2024-01-08'),
+          last_activity: new Date('2024-01-02'),
         },
       ];
       mockAuthService.getUserSessions.mockResolvedValue(mockSessions);
@@ -197,6 +198,7 @@ describe('AuthController', () => {
 
       expect(result.data).toHaveLength(1);
       expect(result.data[0].id).toBe('1');
+      expect(result.data[0].lastActivity).toBeDefined();
     });
   });
 
