@@ -20,17 +20,90 @@ enum Priority {
   CRITICAL
 }
 
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING
+}
+
 model User {
   id                   BigInt                  @id @default(autoincrement())
-  // Existing fields assumed here (e.g., email, name, etc.)
-  createdAt            DateTime                @default(now())
-  updatedAt            DateTime                @updatedAt
+  email                String                  @unique
+  password_hash        String
+  first_name           String
+  last_name            String
+  status               UserStatus              @default(PENDING)
+  role_id              BigInt?
+  createdAt            DateTime                @default(now()) @map("created_at")
+  updatedAt            DateTime                @updatedAt @map("updated_at")
 
+  role                 Role?                   @relation(fields: [role_id], references: [id], onDelete: SetNull)
+  sessions             Session[]
   notifications        Notification[]
   notificationPreference NotificationPreference?
-  createdAnnouncements Announcement[]
+  createdAnnouncements Announcement[]          @relation("createdAnnouncements")
 
   @@map("users")
+}
+
+model Role {
+  id          BigInt       @id @default(autoincrement())
+  name        String       @unique
+  description String?
+  is_active   Boolean      @default(true)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  users       User[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          BigInt       @id @default(autoincrement())
+  name        String       @unique
+  description String?
+  resource    String
+  action      String
+  is_active   Boolean      @default(true)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id            BigInt     @id @default(autoincrement())
+  role_id       BigInt
+  permission_id BigInt
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  role          Role       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@unique([role_id, permission_id])
+  @@map("role_permissions")
+}
+
+model Session {
+  id           BigInt    @id @default(autoincrement())
+  user_id      BigInt
+  token        String    @unique
+  ip_address   String?
+  user_agent   String?
+  is_active    Boolean   @default(true)
+  expires_at   DateTime
+  last_activity DateTime @default(now())
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
 }
 
 model Notification {
