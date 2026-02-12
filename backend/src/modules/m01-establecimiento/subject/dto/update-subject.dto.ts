@@ -20,5 +20,5 @@ export class UpdateSubjectDto {
 
   @IsOptional()
   @IsBoolean()
-  isActive?: boolean;
+  is_active?: boolean;
 }

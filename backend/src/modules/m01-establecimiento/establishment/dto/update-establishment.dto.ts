@@ -9,6 +9,12 @@ export class UpdateEstablishmentDto {
 
   @IsOptional()
   @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  code?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(500)
   address?: string;
 
@@ -24,5 +30,5 @@ export class UpdateEstablishmentDto {
 
   @IsOptional()
   @IsBoolean()
-  isActive?: boolean;
+  is_active?: boolean;
 }

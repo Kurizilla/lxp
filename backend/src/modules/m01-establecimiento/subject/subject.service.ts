@@ -1,15 +1,15 @@
 import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CreateSubjectDto, UpdateSubjectDto } from './dto';
-import { PaginationDto, PaginatedResponse } from '../../../common/dto/pagination.dto';
-import { Subject } from '@prisma/client';
+import { PaginationQueryDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
+import { M01Subject } from '@prisma/client';
 
 @Injectable()
 export class SubjectService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createSubjectDto: CreateSubjectDto): Promise<Subject> {
-    const existingSubject = await this.prisma.subject.findUnique({
+  async create(createSubjectDto: CreateSubjectDto): Promise<M01Subject> {
+    const existingSubject = await this.prisma.m01Subject.findUnique({
       where: { code: createSubjectDto.code },
     });
 
@@ -20,34 +20,29 @@ export class SubjectService {
       });
     }
 
-    return this.prisma.subject.create({
+    return this.prisma.m01Subject.create({
       data: createSubjectDto,
     });
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<PaginatedResponse<Subject>> {
+  async findAll(paginationDto: PaginationQueryDto): Promise<PaginatedResponseDto<M01Subject>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.prisma.subject.findMany({
+      this.prisma.m01Subject.findMany({
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { created_at: 'desc' },
       }),
-      this.prisma.subject.count(),
+      this.prisma.m01Subject.count(),
     ]);
 
-    return {
-      page,
-      limit,
-      total,
-      data,
-    };
+    return PaginatedResponseDto.create(data, total, page, limit);
   }
 
-  async findOne(id: bigint): Promise<Subject> {
-    const subject = await this.prisma.subject.findUnique({
+  async findOne(id: bigint): Promise<M01Subject> {
+    const subject = await this.prisma.m01Subject.findUnique({
       where: { id },
       include: {
         classrooms: true,
@@ -64,11 +59,11 @@ export class SubjectService {
     return subject;
   }
 
-  async update(id: bigint, updateSubjectDto: UpdateSubjectDto): Promise<Subject> {
+  async update(id: bigint, updateSubjectDto: UpdateSubjectDto): Promise<M01Subject> {
     await this.findOne(id);
 
     if (updateSubjectDto.code) {
-      const existingSubject = await this.prisma.subject.findFirst({
+      const existingSubject = await this.prisma.m01Subject.findFirst({
         where: {
           code: updateSubjectDto.code,
           NOT: { id },
@@ -83,22 +78,22 @@ export class SubjectService {
       }
     }
 
-    return this.prisma.subject.update({
+    return this.prisma.m01Subject.update({
       where: { id },
       data: updateSubjectDto,
     });
   }
 
-  async remove(id: bigint): Promise<Subject> {
+  async remove(id: bigint): Promise<M01Subject> {
     await this.findOne(id);
 
-    return this.prisma.subject.delete({
+    return this.prisma.m01Subject.delete({
       where: { id },
     });
   }
 
   async exists(id: bigint): Promise<boolean> {
-    const count = await this.prisma.subject.count({
+    const count = await this.prisma.m01Subject.count({
       where: { id },
     });
     return count > 0;

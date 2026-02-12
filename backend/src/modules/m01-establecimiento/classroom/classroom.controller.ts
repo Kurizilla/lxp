@@ -7,27 +7,25 @@ import {
   Param,
   Delete,
   Query,
-  UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
 import { ClassroomService } from './classroom.service';
 import { CreateClassroomDto, UpdateClassroomDto } from './dto';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { AdminGuard } from '../../../common/guards/admin.guard';
+import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
+import { Roles } from '../auth/auth.guard';
 
-@Controller('api/v1/modules/m01/classrooms')
-@UseGuards(JwtAuthGuard, AdminGuard)
+@Controller('v1/modules/m01/classrooms')
 export class ClassroomController {
   constructor(private readonly classroomService: ClassroomService) {}
 
   @Post()
+  @Roles('admin')
   create(@Body() createClassroomDto: CreateClassroomDto) {
     return this.classroomService.create(createClassroomDto);
   }
 
   @Get()
-  findAll(@Query() paginationDto: PaginationDto) {
+  findAll(@Query() paginationDto: PaginationQueryDto) {
     return this.classroomService.findAll(paginationDto);
   }
 
@@ -37,14 +35,13 @@ export class ClassroomController {
   }
 
   @Patch(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateClassroomDto: UpdateClassroomDto,
-  ) {
+  @Roles('admin')
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateClassroomDto: UpdateClassroomDto) {
     return this.classroomService.update(BigInt(id), updateClassroomDto);
   }
 
   @Delete(':id')
+  @Roles('admin')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.classroomService.remove(BigInt(id));
   }

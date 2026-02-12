@@ -1,42 +1,51 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CreateEstablishmentDto, UpdateEstablishmentDto } from './dto';
-import { PaginationDto, PaginatedResponse } from '../../../common/dto/pagination.dto';
-import { Establishment } from '@prisma/client';
+import { PaginationQueryDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
+import { M01Establishment } from '@prisma/client';
 
 @Injectable()
 export class EstablishmentService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createEstablishmentDto: CreateEstablishmentDto): Promise<Establishment> {
-    return this.prisma.establishment.create({
+  async create(createEstablishmentDto: CreateEstablishmentDto): Promise<M01Establishment> {
+    // Check if code already exists
+    const existingEstablishment = await this.prisma.m01Establishment.findUnique({
+      where: { code: createEstablishmentDto.code },
+    });
+
+    if (existingEstablishment) {
+      throw new ConflictException({
+        code: 'ESTABLISHMENT_CODE_EXISTS',
+        message: `Establishment with code ${createEstablishmentDto.code} already exists`,
+      });
+    }
+
+    return this.prisma.m01Establishment.create({
       data: createEstablishmentDto,
     });
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<PaginatedResponse<Establishment>> {
+  async findAll(
+    paginationDto: PaginationQueryDto,
+  ): Promise<PaginatedResponseDto<M01Establishment>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.prisma.establishment.findMany({
+      this.prisma.m01Establishment.findMany({
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { created_at: 'desc' },
       }),
-      this.prisma.establishment.count(),
+      this.prisma.m01Establishment.count(),
     ]);
 
-    return {
-      page,
-      limit,
-      total,
-      data,
-    };
+    return PaginatedResponseDto.create(data, total, page, limit);
   }
 
-  async findOne(id: bigint): Promise<Establishment> {
-    const establishment = await this.prisma.establishment.findUnique({
+  async findOne(id: bigint): Promise<M01Establishment> {
+    const establishment = await this.prisma.m01Establishment.findUnique({
       where: { id },
       include: {
         classrooms: true,
@@ -53,25 +62,44 @@ export class EstablishmentService {
     return establishment;
   }
 
-  async update(id: bigint, updateEstablishmentDto: UpdateEstablishmentDto): Promise<Establishment> {
+  async update(
+    id: bigint,
+    updateEstablishmentDto: UpdateEstablishmentDto,
+  ): Promise<M01Establishment> {
     await this.findOne(id);
 
-    return this.prisma.establishment.update({
+    if (updateEstablishmentDto.code) {
+      const existingEstablishment = await this.prisma.m01Establishment.findFirst({
+        where: {
+          code: updateEstablishmentDto.code,
+          NOT: { id },
+        },
+      });
+
+      if (existingEstablishment) {
+        throw new ConflictException({
+          code: 'ESTABLISHMENT_CODE_EXISTS',
+          message: `Establishment with code ${updateEstablishmentDto.code} already exists`,
+        });
+      }
+    }
+
+    return this.prisma.m01Establishment.update({
       where: { id },
       data: updateEstablishmentDto,
     });
   }
 
-  async remove(id: bigint): Promise<Establishment> {
+  async remove(id: bigint): Promise<M01Establishment> {
     await this.findOne(id);
 
-    return this.prisma.establishment.delete({
+    return this.prisma.m01Establishment.delete({
       where: { id },
     });
   }
 
   async exists(id: bigint): Promise<boolean> {
-    const count = await this.prisma.establishment.count({
+    const count = await this.prisma.m01Establishment.count({
       where: { id },
     });
     return count > 0;

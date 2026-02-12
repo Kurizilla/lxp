@@ -6,6 +6,11 @@ export class CreateEstablishmentDto {
   @MaxLength(255)
   name: string;
 
+  @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  code: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(500)

@@ -4,65 +4,70 @@ import {
   ArgumentsHost,
   HttpException,
   HttpStatus,
+  Inject,
 } from '@nestjs/common';
 import { Response } from 'express';
-
-export interface ErrorResponse {
-  code: string;
-  message: string;
-  details?: Record<string, any>;
-}
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
+import { ApiErrorResponseDto } from '../dto';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
+  constructor(@Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger) {}
+
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const request = ctx.getRequest();
 
-    let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let errorResponse: ErrorResponse = {
-      code: 'INTERNAL_ERROR',
-      message: 'An unexpected error occurred',
-    };
+    let status: number;
+    let message: string;
+    let code: string;
+    let details: Record<string, any> | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
       const exceptionResponse = exception.getResponse();
 
-      if (typeof exceptionResponse === 'string') {
-        errorResponse = {
-          code: this.getCodeFromStatus(status),
-          message: exceptionResponse,
-        };
-      } else if (typeof exceptionResponse === 'object') {
-        const res = exceptionResponse as Record<string, any>;
-        errorResponse = {
-          code: res.code || this.getCodeFromStatus(status),
-          message: res.message || exception.message,
-          details: res.details || res.errors,
-        };
+      if (typeof exceptionResponse === 'object' && exceptionResponse !== null) {
+        const resp = exceptionResponse as any;
+        message = resp.message || exception.message;
+        code = resp.code || this.getErrorCode(status);
+        details = resp.details;
+      } else {
+        message = exception.message;
+        code = this.getErrorCode(status);
       }
+    } else {
+      status = HttpStatus.INTERNAL_SERVER_ERROR;
+      message = 'Internal server error';
+      code = 'INTERNAL_ERROR';
     }
+
+    this.logger.error('Exception caught', {
+      statusCode: status,
+      message,
+      code,
+      path: request.url,
+      method: request.method,
+      stack: exception instanceof Error ? exception.stack : undefined,
+    });
+
+    const errorResponse = new ApiErrorResponseDto(code, message, details);
 
     response.status(status).json(errorResponse);
   }
 
-  private getCodeFromStatus(status: number): string {
-    switch (status) {
-      case HttpStatus.BAD_REQUEST:
-        return 'BAD_REQUEST';
-      case HttpStatus.UNAUTHORIZED:
-        return 'UNAUTHORIZED';
-      case HttpStatus.FORBIDDEN:
-        return 'FORBIDDEN';
-      case HttpStatus.NOT_FOUND:
-        return 'NOT_FOUND';
-      case HttpStatus.CONFLICT:
-        return 'CONFLICT';
-      case HttpStatus.UNPROCESSABLE_ENTITY:
-        return 'VALIDATION_ERROR';
-      default:
-        return 'INTERNAL_ERROR';
-    }
+  private getErrorCode(status: number): string {
+    const errorCodes: Record<number, string> = {
+      400: 'BAD_REQUEST',
+      401: 'UNAUTHORIZED',
+      403: 'FORBIDDEN',
+      404: 'NOT_FOUND',
+      409: 'CONFLICT',
+      422: 'UNPROCESSABLE_ENTITY',
+      500: 'INTERNAL_ERROR',
+    };
+    return errorCodes[status] || 'UNKNOWN_ERROR';
   }
 }

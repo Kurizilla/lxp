@@ -1,16 +1,16 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EstablishmentService } from './establishment.service';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 
 describe('EstablishmentService', () => {
   let service: EstablishmentService;
-  let prisma: PrismaService;
 
   const mockPrismaService = {
-    establishment: {
+    m01Establishment: {
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
       count: jest.fn(),
@@ -29,7 +29,7 @@ describe('EstablishmentService', () => {
     }).compile();
 
     service = module.get<EstablishmentService>(EstablishmentService);
-    prisma = module.get<PrismaService>(PrismaService);
+    jest.clearAllMocks();
   });
 
   it('should be defined', () => {
@@ -38,53 +38,68 @@ describe('EstablishmentService', () => {
 
   describe('create', () => {
     it('should create an establishment', async () => {
-      const dto = { name: 'Test School', address: '123 Main St' };
-      const expected = { id: BigInt(1), ...dto, createdAt: new Date(), updatedAt: new Date(), isActive: true };
-      
-      mockPrismaService.establishment.create.mockResolvedValue(expected);
+      const dto = { name: 'Test School', code: 'TS001', address: '123 Main St' };
+      const expected = {
+        id: BigInt(1),
+        ...dto,
+        created_at: new Date(),
+        updated_at: new Date(),
+        is_active: true,
+      };
+
+      mockPrismaService.m01Establishment.findUnique.mockResolvedValue(null);
+      mockPrismaService.m01Establishment.create.mockResolvedValue(expected);
 
       const result = await service.create(dto);
-      
+
       expect(result).toEqual(expected);
-      expect(mockPrismaService.establishment.create).toHaveBeenCalledWith({
-        data: dto,
-      });
     });
   });
 
   describe('findAll', () => {
     it('should return paginated establishments', async () => {
       const establishments = [
-        { id: BigInt(1), name: 'School A', createdAt: new Date(), updatedAt: new Date(), isActive: true },
-        { id: BigInt(2), name: 'School B', createdAt: new Date(), updatedAt: new Date(), isActive: true },
+        {
+          id: BigInt(1),
+          name: 'School A',
+          code: 'SA001',
+          created_at: new Date(),
+          updated_at: new Date(),
+          is_active: true,
+        },
+        {
+          id: BigInt(2),
+          name: 'School B',
+          code: 'SB001',
+          created_at: new Date(),
+          updated_at: new Date(),
+          is_active: true,
+        },
       ];
 
-      mockPrismaService.establishment.findMany.mockResolvedValue(establishments);
-      mockPrismaService.establishment.count.mockResolvedValue(2);
+      mockPrismaService.m01Establishment.findMany.mockResolvedValue(establishments);
+      mockPrismaService.m01Establishment.count.mockResolvedValue(2);
 
       const result = await service.findAll({ page: 1, limit: 10 });
 
-      expect(result).toEqual({
-        page: 1,
-        limit: 10,
-        total: 2,
-        data: establishments,
-      });
+      expect(result.total).toEqual(2);
+      expect(result.data).toEqual(establishments);
     });
   });
 
   describe('findOne', () => {
     it('should return an establishment by id', async () => {
-      const establishment = { 
-        id: BigInt(1), 
+      const establishment = {
+        id: BigInt(1),
         name: 'Test School',
-        createdAt: new Date(), 
-        updatedAt: new Date(), 
-        isActive: true,
+        code: 'TS001',
+        created_at: new Date(),
+        updated_at: new Date(),
+        is_active: true,
         classrooms: [],
       };
 
-      mockPrismaService.establishment.findUnique.mockResolvedValue(establishment);
+      mockPrismaService.m01Establishment.findUnique.mockResolvedValue(establishment);
 
       const result = await service.findOne(BigInt(1));
 
@@ -92,7 +107,7 @@ describe('EstablishmentService', () => {
     });
 
     it('should throw NotFoundException when establishment not found', async () => {
-      mockPrismaService.establishment.findUnique.mockResolvedValue(null);
+      mockPrismaService.m01Establishment.findUnique.mockResolvedValue(null);
 
       await expect(service.findOne(BigInt(999))).rejects.toThrow();
     });

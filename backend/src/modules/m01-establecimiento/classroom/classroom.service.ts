@@ -1,47 +1,47 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CreateClassroomDto, UpdateClassroomDto } from './dto';
-import { PaginationDto, PaginatedResponse } from '../../../common/dto/pagination.dto';
-import { Classroom } from '@prisma/client';
+import { PaginationQueryDto, PaginatedResponseDto } from '../../../common/dto/pagination.dto';
+import { M01Classroom } from '@prisma/client';
 
 @Injectable()
 export class ClassroomService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createClassroomDto: CreateClassroomDto): Promise<Classroom> {
-    const { establishmentId, subjectId, ...rest } = createClassroomDto;
+  async create(createClassroomDto: CreateClassroomDto): Promise<M01Classroom> {
+    const { establishment_id, subject_id, ...rest } = createClassroomDto;
 
     // Validate establishment exists
-    const establishment = await this.prisma.establishment.findUnique({
-      where: { id: BigInt(establishmentId) },
+    const establishment = await this.prisma.m01Establishment.findUnique({
+      where: { id: BigInt(establishment_id) },
     });
 
     if (!establishment) {
       throw new BadRequestException({
         code: 'ESTABLISHMENT_NOT_FOUND',
-        message: `Establishment with ID ${establishmentId} does not exist`,
-        details: { field: 'establishmentId', value: establishmentId },
+        message: `Establishment with ID ${establishment_id} does not exist`,
+        details: { field: 'establishment_id', value: establishment_id },
       });
     }
 
     // Validate subject exists
-    const subject = await this.prisma.subject.findUnique({
-      where: { id: BigInt(subjectId) },
+    const subject = await this.prisma.m01Subject.findUnique({
+      where: { id: BigInt(subject_id) },
     });
 
     if (!subject) {
       throw new BadRequestException({
         code: 'SUBJECT_NOT_FOUND',
-        message: `Subject with ID ${subjectId} does not exist`,
-        details: { field: 'subjectId', value: subjectId },
+        message: `Subject with ID ${subject_id} does not exist`,
+        details: { field: 'subject_id', value: subject_id },
       });
     }
 
-    return this.prisma.classroom.create({
+    return this.prisma.m01Classroom.create({
       data: {
         ...rest,
-        establishmentId: BigInt(establishmentId),
-        subjectId: BigInt(subjectId),
+        establishment_id: BigInt(establishment_id),
+        subject_id: BigInt(subject_id),
       },
       include: {
         establishment: true,
@@ -50,33 +50,28 @@ export class ClassroomService {
     });
   }
 
-  async findAll(paginationDto: PaginationDto): Promise<PaginatedResponse<Classroom>> {
+  async findAll(paginationDto: PaginationQueryDto): Promise<PaginatedResponseDto<M01Classroom>> {
     const { page = 1, limit = 10 } = paginationDto;
     const skip = (page - 1) * limit;
 
     const [data, total] = await Promise.all([
-      this.prisma.classroom.findMany({
+      this.prisma.m01Classroom.findMany({
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { created_at: 'desc' },
         include: {
           establishment: true,
           subject: true,
         },
       }),
-      this.prisma.classroom.count(),
+      this.prisma.m01Classroom.count(),
     ]);
 
-    return {
-      page,
-      limit,
-      total,
-      data,
-    };
+    return PaginatedResponseDto.create(data, total, page, limit);
   }
 
-  async findOne(id: bigint): Promise<Classroom> {
-    const classroom = await this.prisma.classroom.findUnique({
+  async findOne(id: bigint): Promise<M01Classroom> {
+    const classroom = await this.prisma.m01Classroom.findUnique({
       where: { id },
       include: {
         establishment: true,
@@ -87,7 +82,8 @@ export class ClassroomService {
               select: {
                 id: true,
                 email: true,
-                name: true,
+                first_name: true,
+                last_name: true,
               },
             },
           },
@@ -105,45 +101,45 @@ export class ClassroomService {
     return classroom;
   }
 
-  async update(id: bigint, updateClassroomDto: UpdateClassroomDto): Promise<Classroom> {
+  async update(id: bigint, updateClassroomDto: UpdateClassroomDto): Promise<M01Classroom> {
     await this.findOne(id);
 
-    const { establishmentId, subjectId, ...rest } = updateClassroomDto;
+    const { establishment_id, subject_id, ...rest } = updateClassroomDto;
     const updateData: Record<string, any> = { ...rest };
 
     // Validate establishment exists if provided
-    if (establishmentId !== undefined) {
-      const establishment = await this.prisma.establishment.findUnique({
-        where: { id: BigInt(establishmentId) },
+    if (establishment_id !== undefined) {
+      const establishment = await this.prisma.m01Establishment.findUnique({
+        where: { id: BigInt(establishment_id) },
       });
 
       if (!establishment) {
         throw new BadRequestException({
           code: 'ESTABLISHMENT_NOT_FOUND',
-          message: `Establishment with ID ${establishmentId} does not exist`,
-          details: { field: 'establishmentId', value: establishmentId },
+          message: `Establishment with ID ${establishment_id} does not exist`,
+          details: { field: 'establishment_id', value: establishment_id },
         });
       }
-      updateData.establishmentId = BigInt(establishmentId);
+      updateData.establishment_id = BigInt(establishment_id);
     }
 
     // Validate subject exists if provided
-    if (subjectId !== undefined) {
-      const subject = await this.prisma.subject.findUnique({
-        where: { id: BigInt(subjectId) },
+    if (subject_id !== undefined) {
+      const subject = await this.prisma.m01Subject.findUnique({
+        where: { id: BigInt(subject_id) },
       });
 
       if (!subject) {
         throw new BadRequestException({
           code: 'SUBJECT_NOT_FOUND',
-          message: `Subject with ID ${subjectId} does not exist`,
-          details: { field: 'subjectId', value: subjectId },
+          message: `Subject with ID ${subject_id} does not exist`,
+          details: { field: 'subject_id', value: subject_id },
         });
       }
-      updateData.subjectId = BigInt(subjectId);
+      updateData.subject_id = BigInt(subject_id);
     }
 
-    return this.prisma.classroom.update({
+    return this.prisma.m01Classroom.update({
       where: { id },
       data: updateData,
       include: {
@@ -153,16 +149,16 @@ export class ClassroomService {
     });
   }
 
-  async remove(id: bigint): Promise<Classroom> {
+  async remove(id: bigint): Promise<M01Classroom> {
     await this.findOne(id);
 
-    return this.prisma.classroom.delete({
+    return this.prisma.m01Classroom.delete({
       where: { id },
     });
   }
 
   async exists(id: bigint): Promise<boolean> {
-    const count = await this.prisma.classroom.count({
+    const count = await this.prisma.m01Classroom.count({
       where: { id },
     });
     return count > 0;

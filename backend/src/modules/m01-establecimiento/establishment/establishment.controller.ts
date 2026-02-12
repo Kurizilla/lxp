@@ -7,27 +7,25 @@ import {
   Param,
   Delete,
   Query,
-  UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
 import { EstablishmentService } from './establishment.service';
 import { CreateEstablishmentDto, UpdateEstablishmentDto } from './dto';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { AdminGuard } from '../../../common/guards/admin.guard';
+import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
+import { Roles } from '../auth/auth.guard';
 
-@Controller('api/v1/modules/m01/establishments')
-@UseGuards(JwtAuthGuard, AdminGuard)
+@Controller('v1/modules/m01/establishments')
 export class EstablishmentController {
   constructor(private readonly establishmentService: EstablishmentService) {}
 
   @Post()
+  @Roles('admin')
   create(@Body() createEstablishmentDto: CreateEstablishmentDto) {
     return this.establishmentService.create(createEstablishmentDto);
   }
 
   @Get()
-  findAll(@Query() paginationDto: PaginationDto) {
+  findAll(@Query() paginationDto: PaginationQueryDto) {
     return this.establishmentService.findAll(paginationDto);
   }
 
@@ -37,6 +35,7 @@ export class EstablishmentController {
   }
 
   @Patch(':id')
+  @Roles('admin')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateEstablishmentDto: UpdateEstablishmentDto,
@@ -45,6 +44,7 @@ export class EstablishmentController {
   }
 
   @Delete(':id')
+  @Roles('admin')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.establishmentService.remove(BigInt(id));
   }

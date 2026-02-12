@@ -7,27 +7,25 @@ import {
   Param,
   Delete,
   Query,
-  UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
 import { SubjectService } from './subject.service';
 import { CreateSubjectDto, UpdateSubjectDto } from './dto';
-import { PaginationDto } from '../../../common/dto/pagination.dto';
-import { JwtAuthGuard } from '../../../common/guards/jwt-auth.guard';
-import { AdminGuard } from '../../../common/guards/admin.guard';
+import { PaginationQueryDto } from '../../../common/dto/pagination.dto';
+import { Roles } from '../auth/auth.guard';
 
-@Controller('api/v1/modules/m01/subjects')
-@UseGuards(JwtAuthGuard, AdminGuard)
+@Controller('v1/modules/m01/subjects')
 export class SubjectController {
   constructor(private readonly subjectService: SubjectService) {}
 
   @Post()
+  @Roles('admin')
   create(@Body() createSubjectDto: CreateSubjectDto) {
     return this.subjectService.create(createSubjectDto);
   }
 
   @Get()
-  findAll(@Query() paginationDto: PaginationDto) {
+  findAll(@Query() paginationDto: PaginationQueryDto) {
     return this.subjectService.findAll(paginationDto);
   }
 
@@ -37,14 +35,13 @@ export class SubjectController {
   }
 
   @Patch(':id')
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateSubjectDto: UpdateSubjectDto,
-  ) {
+  @Roles('admin')
+  update(@Param('id', ParseIntPipe) id: number, @Body() updateSubjectDto: UpdateSubjectDto) {
     return this.subjectService.update(BigInt(id), updateSubjectDto);
   }
 
   @Delete(':id')
+  @Roles('admin')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.subjectService.remove(BigInt(id));
   }

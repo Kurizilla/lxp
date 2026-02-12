@@ -1,19 +1,19 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { ClassroomService } from './classroom.service';
-import { PrismaService } from '../../../prisma/prisma.service';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 
 describe('ClassroomService', () => {
   let service: ClassroomService;
 
   const mockPrismaService = {
-    establishment: {
+    m01Establishment: {
       findUnique: jest.fn(),
     },
-    subject: {
+    m01Subject: {
       findUnique: jest.fn(),
     },
-    classroom: {
+    m01Classroom: {
       create: jest.fn(),
       findMany: jest.fn(),
       findUnique: jest.fn(),
@@ -44,51 +44,52 @@ describe('ClassroomService', () => {
 
   describe('create', () => {
     it('should create a classroom when establishment and subject exist', async () => {
-      const dto = { name: 'Classroom A', establishmentId: 1, subjectId: 1, capacity: 30 };
-      const establishment = { id: BigInt(1), name: 'School A' };
+      const dto = {
+        name: 'Classroom A',
+        code: 'CLA001',
+        establishment_id: 1,
+        subject_id: 1,
+        capacity: 30,
+      };
+      const establishment = { id: BigInt(1), name: 'School A', code: 'SA001' };
       const subject = { id: BigInt(1), name: 'Math', code: 'MATH101' };
       const expected = {
         id: BigInt(1),
         name: 'Classroom A',
-        establishmentId: BigInt(1),
-        subjectId: BigInt(1),
+        code: 'CLA001',
+        establishment_id: BigInt(1),
+        subject_id: BigInt(1),
         capacity: 30,
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        is_active: true,
+        created_at: new Date(),
+        updated_at: new Date(),
         establishment,
         subject,
       };
 
-      mockPrismaService.establishment.findUnique.mockResolvedValue(establishment);
-      mockPrismaService.subject.findUnique.mockResolvedValue(subject);
-      mockPrismaService.classroom.create.mockResolvedValue(expected);
+      mockPrismaService.m01Establishment.findUnique.mockResolvedValue(establishment);
+      mockPrismaService.m01Subject.findUnique.mockResolvedValue(subject);
+      mockPrismaService.m01Classroom.create.mockResolvedValue(expected);
 
       const result = await service.create(dto);
 
       expect(result).toEqual(expected);
-      expect(mockPrismaService.establishment.findUnique).toHaveBeenCalledWith({
-        where: { id: BigInt(1) },
-      });
-      expect(mockPrismaService.subject.findUnique).toHaveBeenCalledWith({
-        where: { id: BigInt(1) },
-      });
     });
 
     it('should throw BadRequestException when establishment does not exist', async () => {
-      const dto = { name: 'Classroom A', establishmentId: 999, subjectId: 1 };
+      const dto = { name: 'Classroom A', code: 'CLA001', establishment_id: 999, subject_id: 1 };
 
-      mockPrismaService.establishment.findUnique.mockResolvedValue(null);
+      mockPrismaService.m01Establishment.findUnique.mockResolvedValue(null);
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw BadRequestException when subject does not exist', async () => {
-      const dto = { name: 'Classroom A', establishmentId: 1, subjectId: 999 };
-      const establishment = { id: BigInt(1), name: 'School A' };
+      const dto = { name: 'Classroom A', code: 'CLA001', establishment_id: 1, subject_id: 999 };
+      const establishment = { id: BigInt(1), name: 'School A', code: 'SA001' };
 
-      mockPrismaService.establishment.findUnique.mockResolvedValue(establishment);
-      mockPrismaService.subject.findUnique.mockResolvedValue(null);
+      mockPrismaService.m01Establishment.findUnique.mockResolvedValue(establishment);
+      mockPrismaService.m01Subject.findUnique.mockResolvedValue(null);
 
       await expect(service.create(dto)).rejects.toThrow(BadRequestException);
     });

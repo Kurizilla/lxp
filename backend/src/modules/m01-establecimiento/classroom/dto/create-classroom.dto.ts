@@ -7,13 +7,18 @@ export class CreateClassroomDto {
   @MaxLength(255)
   name: string;
 
-  @Type(() => Number)
-  @IsNumber()
-  establishmentId: number;
+  @IsString()
+  @MinLength(2)
+  @MaxLength(50)
+  code: string;
 
   @Type(() => Number)
   @IsNumber()
-  subjectId: number;
+  establishment_id: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  subject_id: number;
 
   @IsOptional()
   @Type(() => Number)
