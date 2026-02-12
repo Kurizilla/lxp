@@ -3,3 +3,7 @@ export * from './user';
 export * from './role';
 export * from './permission';
 export * from './session';
+export * from './establishment';
+export * from './subject';
+export * from './classroom';
+export * from './inscription';
