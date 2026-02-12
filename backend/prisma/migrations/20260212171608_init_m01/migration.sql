@@ -1,17 +1,11 @@
 -- CreateSchema
 CREATE SCHEMA IF NOT EXISTS "m01_establecimiento";
 
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
-
 -- CreateEnum
 CREATE TYPE "public"."NotificationType" AS ENUM ('EMAIL', 'IN_APP', 'PUSH');
 
 -- CreateEnum
 CREATE TYPE "public"."Priority" AS ENUM ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL');
-
--- CreateEnum
-CREATE TYPE "m01_establecimiento"."m01_classroom_role" AS ENUM ('STUDENT', 'TEACHER', 'ASSISTANT', 'ADMINISTRATOR');
 
 -- CreateTable
 CREATE TABLE "m01_establecimiento"."m01_users" (
@@ -100,7 +94,7 @@ CREATE TABLE "m01_establecimiento"."m01_sessions" (
 );
 
 -- CreateTable
-CREATE TABLE "public"."m01_notifications" (
+CREATE TABLE "public"."notifications" (
     "id" BIGSERIAL NOT NULL,
     "user_id" BIGINT NOT NULL,
     "type" "public"."NotificationType" NOT NULL,
@@ -112,29 +106,28 @@ CREATE TABLE "public"."m01_notifications" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "m01_notifications_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "notifications_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "public"."m01_announcements" (
+CREATE TABLE "public"."announcements" (
     "id" BIGSERIAL NOT NULL,
-    "creator_id" BIGINT,
+    "creatorId" BIGINT,
     "title" TEXT NOT NULL,
     "content" TEXT NOT NULL,
     "type" "public"."NotificationType" NOT NULL,
     "priority" "public"."Priority" NOT NULL,
-    "target_roles" TEXT[] DEFAULT ARRAY[]::TEXT[],
-    "is_active" BOOLEAN NOT NULL DEFAULT true,
-    "published_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "expires_at" TIMESTAMP(3),
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "publishedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "m01_announcements_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "announcements_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
-CREATE TABLE "public"."m01_notification_preferences" (
+CREATE TABLE "public"."notification_preferences" (
     "id" BIGSERIAL NOT NULL,
     "user_id" BIGINT NOT NULL,
     "email_enabled" BOOLEAN NOT NULL DEFAULT true,
@@ -143,7 +136,7 @@ CREATE TABLE "public"."m01_notification_preferences" (
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "m01_notification_preferences_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "notification_preferences_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -279,28 +272,25 @@ CREATE INDEX "m01_sessions_is_valid_idx" ON "m01_establecimiento"."m01_sessions"
 CREATE INDEX "m01_sessions_expires_at_idx" ON "m01_establecimiento"."m01_sessions"("expires_at");
 
 -- CreateIndex
-CREATE INDEX "idx_m01_notifications_user_id" ON "public"."m01_notifications"("user_id");
+CREATE INDEX "notifications_user_id_idx" ON "public"."notifications"("user_id");
 
 -- CreateIndex
-CREATE INDEX "idx_m01_notifications_read_at" ON "public"."m01_notifications"("read_at");
+CREATE INDEX "notifications_is_read_idx" ON "public"."notifications"("is_read");
 
 -- CreateIndex
-CREATE INDEX "idx_m01_notifications_user_read" ON "public"."m01_notifications"("user_id", "is_read");
+CREATE INDEX "notifications_created_at_idx" ON "public"."notifications"("created_at");
 
 -- CreateIndex
-CREATE INDEX "m01_notifications_created_at_idx" ON "public"."m01_notifications"("created_at");
+CREATE INDEX "announcements_creatorId_idx" ON "public"."announcements"("creatorId");
 
 -- CreateIndex
-CREATE INDEX "m01_announcements_creator_id_idx" ON "public"."m01_announcements"("creator_id");
+CREATE INDEX "announcements_isActive_idx" ON "public"."announcements"("isActive");
 
 -- CreateIndex
-CREATE INDEX "idx_m01_announcements_active_published" ON "public"."m01_announcements"("is_active", "published_at");
+CREATE INDEX "announcements_publishedAt_idx" ON "public"."announcements"("publishedAt");
 
 -- CreateIndex
-CREATE INDEX "idx_m01_announcements_target_roles" ON "public"."m01_announcements"("target_roles");
-
--- CreateIndex
-CREATE UNIQUE INDEX "m01_notification_preferences_user_id_key" ON "public"."m01_notification_preferences"("user_id");
+CREATE UNIQUE INDEX "notification_preferences_user_id_key" ON "public"."notification_preferences"("user_id");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "m01_establishments_code_key" ON "m01_establecimiento"."m01_establishments"("code");
@@ -360,13 +350,13 @@ ALTER TABLE "m01_establecimiento"."m01_user_roles" ADD CONSTRAINT "m01_user_role
 ALTER TABLE "m01_establecimiento"."m01_sessions" ADD CONSTRAINT "m01_sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "m01_establecimiento"."m01_users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."m01_notifications" ADD CONSTRAINT "m01_notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "m01_establecimiento"."m01_users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."notifications" ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "m01_establecimiento"."m01_users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."m01_announcements" ADD CONSTRAINT "m01_announcements_creator_id_fkey" FOREIGN KEY ("creator_id") REFERENCES "m01_establecimiento"."m01_users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "public"."announcements" ADD CONSTRAINT "announcements_creatorId_fkey" FOREIGN KEY ("creatorId") REFERENCES "m01_establecimiento"."m01_users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "public"."m01_notification_preferences" ADD CONSTRAINT "m01_notification_preferences_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "m01_establecimiento"."m01_users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "public"."notification_preferences" ADD CONSTRAINT "notification_preferences_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "m01_establecimiento"."m01_users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "m01_establecimiento"."m01_classrooms" ADD CONSTRAINT "m01_classrooms_establishment_id_fkey" FOREIGN KEY ("establishment_id") REFERENCES "m01_establecimiento"."m01_establishments"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -379,4 +369,3 @@ ALTER TABLE "m01_establecimiento"."m01_user_classrooms" ADD CONSTRAINT "m01_user
 
 -- AddForeignKey
 ALTER TABLE "m01_establecimiento"."m01_user_classrooms" ADD CONSTRAINT "m01_user_classrooms_classroom_id_fkey" FOREIGN KEY ("classroom_id") REFERENCES "m01_establecimiento"."m01_classrooms"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
