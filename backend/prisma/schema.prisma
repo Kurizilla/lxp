@@ -1,12 +1,10 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["multiSchema"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["public", "m01_establecimiento"]
 }
 
 // =============================================================================
@@ -17,8 +15,6 @@ enum NotificationType {
   EMAIL
   IN_APP
   PUSH
-
-  @@schema("public")
 }
 
 enum Priority {
@@ -26,8 +22,6 @@ enum Priority {
   MEDIUM
   HIGH
   CRITICAL
-
-  @@schema("public")
 }
 
 // =============================================================================
@@ -68,7 +62,6 @@ model User {
   @@index([google_id])
   @@index([created_at])
   @@map("m01_users")
-  @@schema("m01_establecimiento")
 }
 
 /// Role model for RBAC system
@@ -88,7 +81,6 @@ model Role {
   @@index([name])
   @@index([is_active])
   @@map("m01_roles")
-  @@schema("m01_establecimiento")
 }
 
 /// Permission model for granular access control
@@ -108,7 +100,6 @@ model Permission {
   @@index([resource])
   @@index([action])
   @@map("m01_permissions")
-  @@schema("m01_establecimiento")
 }
 
 /// Junction table for Role-Permission many-to-many relationship
@@ -126,7 +117,6 @@ model RolePermission {
   @@index([role_id])
   @@index([permission_id])
   @@map("m01_role_permissions")
-  @@schema("m01_establecimiento")
 }
 
 /// Junction table for User-Role many-to-many relationship
@@ -149,7 +139,6 @@ model UserRole {
   @@index([role_id])
   @@index([expires_at])
   @@map("m01_user_roles")
-  @@schema("m01_establecimiento")
 }
 
 /// Session model for user session management
@@ -175,7 +164,6 @@ model Session {
   @@index([is_valid])
   @@index([expires_at])
   @@map("m01_sessions")
-  @@schema("m01_establecimiento")
 }
 
 // =============================================================================
@@ -202,7 +190,6 @@ model Notification {
   @@index([user_id, is_read], name: "idx_m01_notifications_user_read")
   @@index([created_at])
   @@map("m01_notifications")
-  @@schema("public")
 }
 
 /// Announcement model for system-wide announcements
@@ -226,7 +213,6 @@ model Announcement {
   @@index([is_active, published_at], name: "idx_m01_announcements_active_published")
   @@index([target_roles], name: "idx_m01_announcements_target_roles")
   @@map("m01_announcements")
-  @@schema("public")
 }
 
 /// User notification preferences
@@ -242,7 +228,6 @@ model NotificationPreference {
   user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("m01_notification_preferences")
-  @@schema("public")
 }
 
 // =============================================================================
@@ -257,7 +242,6 @@ enum M01ClassroomRole {
   ADMINISTRATOR
 
   @@map("m01_classroom_role")
-  @@schema("m01_establecimiento")
 }
 
 /// Establishment entity - represents a school or educational institution
@@ -277,7 +261,6 @@ model M01Establishment {
   @@index([code])
   @@index([is_active])
   @@map("m01_establishments")
-  @@schema("m01_establecimiento")
 }
 
 model M01Subject {
@@ -294,7 +277,6 @@ model M01Subject {
   @@index([code])
   @@index([is_active])
   @@map("m01_subjects")
-  @@schema("m01_establecimiento")
 }
 
 model M01Classroom {
@@ -317,7 +299,6 @@ model M01Classroom {
   @@index([subject_id])
   @@index([is_active])
   @@map("m01_classrooms")
-  @@schema("m01_establecimiento")
 }
 
 model M01UserClassroom {
@@ -338,5 +319,4 @@ model M01UserClassroom {
   @@index([classroom_id])
   @@index([is_active])
   @@map("m01_user_classrooms")
-  @@schema("m01_establecimiento")
 }
