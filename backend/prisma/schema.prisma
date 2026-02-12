@@ -22,15 +22,81 @@ enum Priority {
 
 model User {
   id                   BigInt                  @id @default(autoincrement())
-  // Existing fields assumed here (e.g., email, name, etc.)
+  email                String                  @unique
+  password             String
+  name                 String?
+  role                 String                  @default("user")
   createdAt            DateTime                @default(now())
   updatedAt            DateTime                @updatedAt
 
   notifications        Notification[]
   notificationPreference NotificationPreference?
-  createdAnnouncements Announcement[]
+  createdAnnouncements Announcement[] @relation("createdAnnouncements")
+  userClassrooms       UserClassroom[]
 
   @@map("users")
+}
+
+model Establishment {
+  id          BigInt      @id @default(autoincrement())
+  name        String
+  address     String?
+  phone       String?
+  email       String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  classrooms  Classroom[]
+
+  @@map("establishments")
+}
+
+model Subject {
+  id          BigInt      @id @default(autoincrement())
+  name        String
+  code        String      @unique
+  description String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  classrooms  Classroom[]
+
+  @@map("subjects")
+}
+
+model Classroom {
+  id              BigInt        @id @default(autoincrement())
+  name            String
+  establishmentId BigInt
+  subjectId       BigInt
+  capacity        Int           @default(30)
+  isActive        Boolean       @default(true)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  establishment   Establishment @relation(fields: [establishmentId], references: [id], onDelete: Cascade)
+  subject         Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  userClassrooms  UserClassroom[]
+
+  @@map("classrooms")
+}
+
+model UserClassroom {
+  id          BigInt    @id @default(autoincrement())
+  userId      BigInt
+  classroomId BigInt
+  enrolledAt  DateTime  @default(now())
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classroomId])
+  @@map("user_classrooms")
 }
 
 model Notification {
