@@ -76,9 +76,8 @@ export class AuthService {
         data: {
           failed_login_attempts: user.failed_login_attempts + 1,
           // Lock account after 5 failed attempts for 15 minutes
-          locked_until: user.failed_login_attempts >= 4
-            ? new Date(Date.now() + 15 * 60 * 1000)
-            : null,
+          locked_until:
+            user.failed_login_attempts >= 4 ? new Date(Date.now() + 15 * 60 * 1000) : null,
         },
       });
 
@@ -144,9 +143,7 @@ export class AuthService {
     return this.generateAuthResponse(user);
   }
 
-  async requestPasswordRecovery(
-    dto: PasswordRecoveryRequestDto,
-  ): Promise<{ message: string }> {
+  async requestPasswordRecovery(dto: PasswordRecoveryRequestDto): Promise<{ message: string }> {
     const { email } = dto;
 
     const user = await this.prisma.user.findUnique({
@@ -231,11 +228,7 @@ export class AuthService {
     });
   }
 
-  async createSession(
-    userId: bigint,
-    ipAddress?: string,
-    userAgent?: string,
-  ): Promise<string> {
+  async createSession(userId: bigint, ipAddress?: string, userAgent?: string): Promise<string> {
     const token = randomBytes(64).toString('hex');
     const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_SECONDS * 1000);
 

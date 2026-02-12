@@ -68,17 +68,13 @@ describe('JwtStrategy', () => {
     it('should throw UnauthorizedException for invalid user', async () => {
       mockAuthService.validateUser.mockResolvedValue(null);
 
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(strategy.validate(mockPayload)).rejects.toThrow(UnauthorizedException);
     });
 
     it('should throw UnauthorizedException for inactive user', async () => {
       mockAuthService.validateUser.mockResolvedValue(null);
 
-      await expect(strategy.validate(mockPayload)).rejects.toThrow(
-        UnauthorizedException,
-      );
+      await expect(strategy.validate(mockPayload)).rejects.toThrow(UnauthorizedException);
     });
   });
 });

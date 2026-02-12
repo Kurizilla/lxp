@@ -54,9 +54,7 @@ describe('AuthService', () => {
     password_reset_expires: null,
     created_at: new Date(),
     updated_at: new Date(),
-    user_roles: [
-      { role: { name: 'user' } },
-    ],
+    user_roles: [{ role: { name: 'user' } }],
   };
 
   beforeEach(async () => {
@@ -234,9 +232,9 @@ describe('AuthService', () => {
 
   describe('googleAuth', () => {
     it('should throw BadRequestException as SSO is not configured', async () => {
-      await expect(
-        service.googleAuth({ idToken: 'some-token' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.googleAuth({ idToken: 'some-token' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -255,11 +253,7 @@ describe('AuthService', () => {
         updated_at: new Date(),
       });
 
-      const result = await service.createSession(
-        BigInt(1),
-        '127.0.0.1',
-        'Test Agent',
-      );
+      const result = await service.createSession(BigInt(1), '127.0.0.1', 'Test Agent');
 
       expect(result).toBeDefined();
       expect(typeof result).toBe('string');
