@@ -17,6 +17,7 @@ export class AssistantController {
     @CurrentUser() user: CurrentUserPayload,
     @Body() queryDto: AssistantQueryDto,
   ): Promise<AssistantResponseDto> {
-    return this.assistantService.query(user.userId, queryDto);
+    const userId = user?.userId ?? BigInt(1);
+    return this.assistantService.query(userId, queryDto);
   }
 }

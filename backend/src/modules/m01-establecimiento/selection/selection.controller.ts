@@ -17,7 +17,9 @@ export class SelectionController {
     @CurrentUser() user: CurrentUserPayload,
     @Query() query: MyInstitutionsQueryDto,
   ): Promise<MyInstitutionsResponseDto> {
-    return this.selectionService.getMyInstitutions(user.userId, query);
+    // Use user.userId if authenticated, otherwise use mock for @Public endpoints
+    const userId = user?.userId ?? BigInt(1);
+    return this.selectionService.getMyInstitutions(userId, query);
   }
 
   /**
@@ -29,7 +31,8 @@ export class SelectionController {
     @CurrentUser() user: CurrentUserPayload,
     @Param('id', ParseIntPipe) id: number,
   ): Promise<InstitutionDto> {
-    const institution = await this.selectionService.getInstitutionById(user.userId, id);
+    const userId = user?.userId ?? BigInt(1);
+    const institution = await this.selectionService.getInstitutionById(userId, id);
 
     if (!institution) {
       throw new NotFoundException({
