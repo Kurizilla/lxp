@@ -28,7 +28,8 @@ model User {
 
   notifications        Notification[]
   notificationPreference NotificationPreference?
-  createdAnnouncements Announcement[]
+  createdAnnouncements Announcement[] @relation("createdAnnouncements")
+  userClassrooms       M01UserClassroom[]
 
   @@map("users")
 }
@@ -52,7 +53,7 @@ model Notification {
 
 model Announcement {
   id          BigInt          @id @default(autoincrement())
-  creatorId   BigInt
+  creatorId   BigInt?
   title       String
   content     String
   type        NotificationType
@@ -63,7 +64,7 @@ model Announcement {
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
-  creator     User            @relation("createdAnnouncements", fields: [creatorId], references: [id], onDelete: SetNull)
+  creator     User?           @relation("createdAnnouncements", fields: [creatorId], references: [id], onDelete: SetNull)
 
   @@map("announcements")
 }
@@ -80,4 +81,84 @@ model NotificationPreference {
   user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notification_preferences")
+}
+
+// =============================================================================
+// M01 - Establecimiento Module Models
+// =============================================================================
+
+model M01Establishment {
+  id          BigInt    @id @default(autoincrement())
+  name        String
+  code        String    @unique
+  address     String?
+  phone       String?
+  email       String?
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  classrooms  M01Classroom[]
+
+  @@index([code])
+  @@index([is_active])
+  @@map("m01_establishments")
+}
+
+model M01Subject {
+  id          BigInt    @id @default(autoincrement())
+  name        String
+  code        String    @unique
+  description String?
+  is_active   Boolean   @default(true)
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @updatedAt
+
+  classrooms  M01Classroom[]
+
+  @@index([code])
+  @@index([is_active])
+  @@map("m01_subjects")
+}
+
+model M01Classroom {
+  id                BigInt    @id @default(autoincrement())
+  establishment_id  BigInt
+  subject_id        BigInt
+  name              String
+  code              String
+  capacity          Int?
+  is_active         Boolean   @default(true)
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  establishment     M01Establishment   @relation(fields: [establishment_id], references: [id], onDelete: Cascade)
+  subject           M01Subject         @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  userClassrooms    M01UserClassroom[]
+
+  @@unique([establishment_id, code])
+  @@index([establishment_id])
+  @@index([subject_id])
+  @@index([is_active])
+  @@map("m01_classrooms")
+}
+
+model M01UserClassroom {
+  id            BigInt    @id @default(autoincrement())
+  user_id       BigInt
+  classroom_id  BigInt
+  role          String    @default("student")
+  enrolled_at   DateTime  @default(now())
+  is_active     Boolean   @default(true)
+  created_at    DateTime  @default(now())
+  updated_at    DateTime  @updatedAt
+
+  user          User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  classroom     M01Classroom  @relation(fields: [classroom_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, classroom_id])
+  @@index([user_id])
+  @@index([classroom_id])
+  @@index([is_active])
+  @@map("m01_user_classrooms")
 }
