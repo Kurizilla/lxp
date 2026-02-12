@@ -1,0 +1,128 @@
+generator client {
+  provider   = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  schemas   = ["m01"]
+}
+
+model Role {
+  id          BigInt             @id @default(autoincrement()) @map("id")
+  name        String             @unique @map("name") @db.VarChar(100)
+  description String?            @map("description") @db.Text
+  created_at  DateTime           @default(now()) @map("created_at")
+  updated_at  DateTime           @updatedAt @map("updated_at")
+  users       User[]
+  userInstitutions UserInstitution[]
+
+  @@map("roles")
+  @@schema("m01")
+}
+
+model User {
+  id               BigInt            @id @default(autoincrement()) @map("id")
+  email            String            @unique @map("email") @db.VarChar(255)
+  email_verified   Boolean           @default(false) @map("email_verified")
+  password_hash    String            @map("password_hash") @db.VarChar(255)
+  first_name       String?           @map("first_name") @db.VarChar(100)
+  last_name        String?           @map("last_name") @db.VarChar(100)
+  role_id          BigInt            @map("role_id")
+  created_at       DateTime          @default(now()) @map("created_at")
+  updated_at       DateTime          @updatedAt @map("updated_at")
+  sessions         Session[]
+  role             Role              @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  userInstitutions UserInstitution[]
+  userClassrooms   UserClassroom[]
+
+  @@map("users")
+  @@schema("m01")
+}
+
+model Session {
+  id         BigInt   @id @default(autoincrement()) @map("id")
+  user_id    BigInt   @map("user_id")
+  refresh_token String @unique @map("refresh_token") @db.Text
+  expires_at DateTime @map("expires_at")
+  created_at DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+  @@schema("m01")
+}
+
+model School {
+  id             BigInt            @id @default(autoincrement()) @map("id")
+  name           String            @map("name") @db.VarChar(255)
+  code           String?           @unique @map("code") @db.VarChar(50)
+  address        String?           @map("address") @db.Text
+  created_at     DateTime          @default(now()) @map("created_at")
+  updated_at     DateTime          @updatedAt @map("updated_at")
+  subjects       Subject[]
+  classrooms     Classroom[]
+  userInstitutions UserInstitution[]
+
+  @@map("schools")
+  @@schema("m01")
+}
+
+model Subject {
+  id          BigInt   @id @default(autoincrement()) @map("id")
+  name        String   @map("name") @db.VarChar(255)
+  code        String?  @unique @map("code") @db.VarChar(50)
+  description String?  @map("description") @db.Text
+  school_id   BigInt   @map("school_id")
+  created_at  DateTime @default(now()) @map("created_at")
+  updated_at  DateTime @updatedAt @map("updated_at")
+  school      School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+
+  @@map("subjects")
+  @@schema("m01")
+}
+
+model Classroom {
+  id          BigInt         @id @default(autoincrement()) @map("id")
+  name        String         @map("name") @db.VarChar(255)
+  code        String?        @unique @map("code") @db.VarChar(50)
+  subject_id  BigInt?        @map("subject_id")
+  school_id   BigInt         @map("school_id")
+  capacity    Int?           @map("capacity")
+  created_at  DateTime       @default(now()) @map("created_at")
+  updated_at  DateTime       @updatedAt @map("updated_at")
+  school      School         @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  subject     Subject?       @relation(fields: [subject_id], references: [id])
+  userClassrooms UserClassroom[]
+
+  @@map("classrooms")
+  @@schema("m01")
+}
+
+model UserInstitution {
+  id        BigInt   @id @default(autoincrement()) @map("id")
+  user_id   BigInt   @map("user_id")
+  school_id BigInt   @map("school_id")
+  role_id   BigInt?  @map("role_id")
+  joined_at DateTime @default(now()) @map("joined_at")
+  user      User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  school    School   @relation(fields: [school_id], references: [id], onDelete: Cascade)
+  role      Role?    @relation(fields: [role_id], references: [id])
+
+  @@unique([user_id, school_id])
+  @@map("user_institutions")
+  @@schema("m01")
+}
+
+model UserClassroom {
+  id           BigInt    @id @default(autoincrement()) @map("id")
+  user_id      BigInt    @map("user_id")
+  classroom_id BigInt    @map("classroom_id")
+  enrolled_at  DateTime  @default(now()) @map("enrolled_at")
+  user         User      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  classroom    Classroom @relation(fields: [classroom_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, classroom_id])
+  @@map("user_classrooms")
+  @@schema("m01")
+}
