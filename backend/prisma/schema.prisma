@@ -207,11 +207,11 @@ model Announcement {
   content     String
   type        NotificationType
   priority    Priority
-  isActive    Boolean         @default(true)
-  publishedAt DateTime        @default(now())
-  expiresAt   DateTime?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  isActive    Boolean         @default(true) @map("is_active")
+  publishedAt DateTime        @default(now()) @map("published_at")
+  expiresAt   DateTime?       @map("expires_at")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
 
   creator     User?           @relation("createdAnnouncements", fields: [creatorId], references: [id], onDelete: SetNull)
 
@@ -239,9 +239,20 @@ model NotificationPreference {
 }
 
 // =============================================================================
-// M01 - Establecimiento Module Models
+// M01 - Establecimiento Module: Establishments, Subjects, Classrooms, Enrollment
 // =============================================================================
 
+/// Role within a classroom context
+enum M01ClassroomRole {
+  STUDENT
+  TEACHER
+  ASSISTANT
+  ADMINISTRATOR
+
+  @@map("m01_classroom_role")
+}
+
+/// Establishment entity - represents a school or educational institution
 model M01Establishment {
   id          BigInt    @id @default(autoincrement())
   name        String
