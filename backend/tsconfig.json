@@ -1,1 +1,19 @@
-{"compilerOptions":{"module":"commonjs","declaration":true,"outDir":"./dist","strict":true},"include":["src/**/*"]}
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "declaration": true,
+    "outDir": "./dist",
+    "strict": true,
+    "target": "ES2021",
+    "lib": ["ES2021"],
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noImplicitAny": false,
+    "strictPropertyInitialization": false
+  },
+  "include": ["src/**/*"]
+}

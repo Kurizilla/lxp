@@ -28,7 +28,7 @@ model User {
 
   notifications        Notification[]
   notificationPreference NotificationPreference?
-  createdAnnouncements Announcement[]
+  createdAnnouncements Announcement[] @relation("createdAnnouncements")
 
   @@map("users")
 }
