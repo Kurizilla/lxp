@@ -5,6 +5,7 @@ export * from './session.dto';
 export * from './create-user.dto';
 export * from './assign-role.dto';
 export * from './assign-permission.dto';
+export * from './teacher.dto';
 export * from './create-institution.dto';
 export * from './create-subject.dto';
 export * from './create-classroom.dto';
