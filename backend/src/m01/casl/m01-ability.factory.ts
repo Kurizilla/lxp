@@ -14,7 +14,9 @@ export type M01Subjects =
   | 'Permission'
   | 'Session'
   | 'Institution'
+  | 'Subject'
   | 'Classroom'
+  | 'Enrollment'
   | 'all';
 
 /**
@@ -101,8 +103,12 @@ export class M01AbilityFactory {
       sessions: 'Session',
       institution: 'Institution',
       institutions: 'Institution',
+      subject: 'Subject',
+      subjects: 'Subject',
       classroom: 'Classroom',
       classrooms: 'Classroom',
+      enrollment: 'Enrollment',
+      enrollments: 'Enrollment',
     };
 
     return resourceMap[resource.toLowerCase()] || null;
