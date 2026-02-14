@@ -43,6 +43,40 @@ npm run build
 npm start
 ```
 
+## Quick Setup (Desarrollo)
+
+Para configurar rápidamente el entorno de desarrollo con datos de prueba:
+
+```bash
+# 1. Instalar dependencias
+npm install
+
+# 2. Configurar .env (copiar y editar)
+cp .env.example .env
+
+# 3. Setup completo (migraciones + seed)
+npm run db:setup
+
+# 4. Iniciar servidor
+npm start
+```
+
+Esto crea automáticamente:
+- **Roles**: admin, teacher, student
+- **Usuario Admin**: `admin@test.com` / `Admin123!`
+- **Usuario Teacher**: `teacher@test.com` / `Teacher123!`
+- **Institución de prueba**: TEST-001
+- **Materia de prueba**: MATH-101
+- **Aula de prueba**: Math 101 - Section A
+- **Teacher asignado a institución y aula**
+
+### Resetear Base de Datos
+
+```bash
+# Resetear y re-seedear
+npm run prisma:reset
+```
+
 ## Scripts Disponibles
 
 | Comando | Descripción |
@@ -140,6 +174,14 @@ backend/
 | POST | `/admin/enrollments` | Matricular usuario en aula |
 | PATCH | `/admin/enrollments/:id` | Actualizar matrícula |
 
+### Teacher (`/teacher`)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/teacher/institutions` | Listar instituciones asignadas al teacher |
+| GET | `/teacher/classrooms` | Listar aulas donde es teacher |
+| GET | `/teacher/classrooms?institution_id=<uuid>` | Filtrar aulas por institución |
+
 ## Paginación
 
 Los endpoints de listado soportan paginación mediante query params:
@@ -171,6 +213,29 @@ curl -X POST http://localhost:3001/auth/login \
 # 2. Usar token en peticiones
 curl http://localhost:3001/admin/institutions \
   -H "Authorization: Bearer <token>"
+```
+
+## Probar Teacher Endpoints
+
+Después de ejecutar `npm run db:setup`, puedes probar los endpoints de teacher:
+
+```bash
+# 1. Login como teacher
+TOKEN=$(curl -s -X POST http://localhost:3001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "teacher@test.com", "password": "Teacher123!"}' | jq -r '.token')
+
+# 2. Obtener instituciones del teacher
+curl http://localhost:3001/teacher/institutions \
+  -H "Authorization: Bearer $TOKEN"
+
+# 3. Obtener aulas del teacher
+curl http://localhost:3001/teacher/classrooms \
+  -H "Authorization: Bearer $TOKEN"
+
+# 4. Filtrar aulas por institución
+curl "http://localhost:3001/teacher/classrooms?institution_id=<uuid>" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ## Ejecutar Tests
