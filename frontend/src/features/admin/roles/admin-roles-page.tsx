@@ -63,11 +63,11 @@ export function AdminRolesPage() {
     set_error(null);
 
     try {
-      const response = await admin_roles_service.list({
-        offset,
-        limit: ITEMS_PER_PAGE,
-      });
-      set_roles(response.roles);
+      const response = await admin_roles_service.list();
+      // Apply client-side pagination since backend returns all roles
+      const start = offset;
+      const end = offset + ITEMS_PER_PAGE;
+      set_roles(response.roles.slice(start, end));
       set_total(response.total);
     } catch (err) {
       if (err instanceof ApiException) {
@@ -85,7 +85,7 @@ export function AdminRolesPage() {
    */
   const fetch_permissions = useCallback(async () => {
     try {
-      const response = await admin_permissions_service.list({ limit: 200 });
+      const response = await admin_permissions_service.list();
       set_permissions(response.permissions);
     } catch {
       // Silently fail - permissions list is needed for assignment

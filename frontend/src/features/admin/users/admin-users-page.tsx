@@ -154,7 +154,7 @@ export function AdminUsersPage() {
    */
   const fetch_roles = useCallback(async () => {
     try {
-      const response = await admin_roles_service.list({ limit: 100 });
+      const response = await admin_roles_service.list();
       set_roles(response.roles);
     } catch {
       // Silently fail - roles are optional for display

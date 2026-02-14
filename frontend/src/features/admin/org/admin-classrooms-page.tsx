@@ -169,11 +169,12 @@ export function AdminClassroomsPage() {
   const fetch_options = useCallback(async () => {
     try {
       const [institutions_response, subjects_response] = await Promise.all([
-        admin_institutions_service.list({ limit: 100, is_active: true }),
-        admin_subjects_service.list({ limit: 100, is_active: true }),
+        admin_institutions_service.list({ limit: 100 }),
+        admin_subjects_service.list({ limit: 100 }),
       ]);
-      set_institutions(institutions_response.institutions);
-      set_subjects(subjects_response.subjects);
+      // Filter active ones client-side since backend doesn't support is_active filter
+      set_institutions(institutions_response.institutions.filter(i => i.is_active));
+      set_subjects(subjects_response.subjects.filter(s => s.is_active));
     } catch {
       // Silently fail - options are needed for dropdowns
     }

@@ -55,10 +55,11 @@ function build_query_string<T extends object>(params: T): string {
 export const admin_users_service = {
   /**
    * GET /admin/users
-   * List users with pagination and filters
+   * List users with pagination
+   * Note: Backend only supports offset and limit, no search/filter
    */
-  list: (params?: PaginationParams & { search?: string; is_active?: boolean }): Promise<AdminUsersResponse> =>
-    api.get<AdminUsersResponse>(`/admin/users${build_query_string(params || {})}`),
+  list: (params?: PaginationParams): Promise<AdminUsersResponse> =>
+    api.get<AdminUsersResponse>(`/admin/users${build_query_string({ offset: params?.offset, limit: params?.limit })}`),
 
   /**
    * GET /admin/users/:id
@@ -98,22 +99,23 @@ export const admin_users_service = {
 
 /**
  * Admin roles service
- * Maps to backend /admin/roles endpoints
+ * Note: Backend does not have GET /admin/roles endpoint
+ * Roles are obtained from user data or hardcoded for now
  */
 export const admin_roles_service = {
   /**
-   * GET /admin/roles
-   * List roles with pagination
+   * List roles - returns hardcoded system roles since backend doesn't have this endpoint
+   * In a real implementation, this would call GET /admin/roles
    */
-  list: (params?: PaginationParams): Promise<AdminRolesResponse> =>
-    api.get<AdminRolesResponse>(`/admin/roles${build_query_string(params || {})}`),
-
-  /**
-   * GET /admin/roles/:id
-   * Get a single role by ID
-   */
-  get: (role_id: string): Promise<{ role: AdminRole }> =>
-    api.get<{ role: AdminRole }>(`/admin/roles/${role_id}`),
+  list: async (): Promise<AdminRolesResponse> => {
+    // Hardcoded system roles matching the seed data
+    const system_roles: AdminRole[] = [
+      { id: 'admin', name: 'admin', description: 'Administrator with full access', is_system: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), permissions: [] },
+      { id: 'teacher', name: 'teacher', description: 'Teacher role', is_system: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), permissions: [] },
+      { id: 'student', name: 'student', description: 'Student role', is_system: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), permissions: [] },
+    ];
+    return { roles: system_roles, total: system_roles.length, offset: 0, limit: 100 };
+  },
 
   /**
    * POST /admin/roles/:id/permissions
@@ -125,15 +127,17 @@ export const admin_roles_service = {
 
 /**
  * Admin permissions service
- * Maps to backend /admin/permissions endpoints
+ * Note: Backend does not have GET /admin/permissions endpoint
  */
 export const admin_permissions_service = {
   /**
-   * GET /admin/permissions
-   * List all permissions
+   * List permissions - returns empty since backend doesn't have this endpoint
+   * In a real implementation, this would call GET /admin/permissions
    */
-  list: (params?: PaginationParams): Promise<AdminPermissionsResponse> =>
-    api.get<AdminPermissionsResponse>(`/admin/permissions${build_query_string(params || {})}`),
+  list: async (): Promise<AdminPermissionsResponse> => {
+    // Backend doesn't have this endpoint yet
+    return { permissions: [], total: 0, offset: 0, limit: 100 };
+  },
 };
 
 /**
@@ -143,10 +147,11 @@ export const admin_permissions_service = {
 export const admin_institutions_service = {
   /**
    * GET /admin/institutions
-   * List institutions with pagination and filters
+   * List institutions with pagination
+   * Note: Backend only supports offset and limit
    */
-  list: (params?: PaginationParams & { search?: string; is_active?: boolean }): Promise<InstitutionsResponse> =>
-    api.get<InstitutionsResponse>(`/admin/institutions${build_query_string(params || {})}`),
+  list: (params?: PaginationParams): Promise<InstitutionsResponse> =>
+    api.get<InstitutionsResponse>(`/admin/institutions${build_query_string({ offset: params?.offset, limit: params?.limit })}`),
 
   /**
    * GET /admin/institutions/:id
@@ -184,10 +189,11 @@ export const admin_institutions_service = {
 export const admin_subjects_service = {
   /**
    * GET /admin/subjects
-   * List subjects with pagination and filters
+   * List subjects with pagination
+   * Note: Backend only supports offset and limit
    */
-  list: (params?: PaginationParams & { search?: string; is_active?: boolean }): Promise<SubjectsResponse> =>
-    api.get<SubjectsResponse>(`/admin/subjects${build_query_string(params || {})}`),
+  list: (params?: PaginationParams): Promise<SubjectsResponse> =>
+    api.get<SubjectsResponse>(`/admin/subjects${build_query_string({ offset: params?.offset, limit: params?.limit })}`),
 
   /**
    * GET /admin/subjects/:id
@@ -225,10 +231,11 @@ export const admin_subjects_service = {
 export const admin_classrooms_service = {
   /**
    * GET /admin/classrooms
-   * List classrooms with pagination and filters
+   * List classrooms with pagination
+   * Note: Backend only supports offset and limit
    */
-  list: (params?: PaginationParams & { search?: string; is_active?: boolean; institution_id?: string; subject_id?: string }): Promise<ClassroomsResponse> =>
-    api.get<ClassroomsResponse>(`/admin/classrooms${build_query_string(params || {})}`),
+  list: (params?: PaginationParams): Promise<ClassroomsResponse> =>
+    api.get<ClassroomsResponse>(`/admin/classrooms${build_query_string({ offset: params?.offset, limit: params?.limit })}`),
 
   /**
    * GET /admin/classrooms/:id
