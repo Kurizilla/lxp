@@ -190,7 +190,7 @@ if [ -n "$NOTIFICATION_ID" ]; then
   RESPONSE=$(curl -s -X PATCH "$BASE_URL/notifications/$NOTIFICATION_ID/read" \
     -H "Authorization: Bearer $TOKEN")
   
-  if run_test "Already read message" '"was already marked as read"' "$RESPONSE"; then ((PASSED++)); else ((FAILED++)); fi
+  if run_test "Already read message" 'was already marked as read' "$RESPONSE"; then ((PASSED++)); else ((FAILED++)); fi
 else
   echo -e "${YELLOW}⏭️  SKIP${NC}: No notification ID"
 fi
@@ -234,7 +234,7 @@ RESPONSE=$(curl -s -X POST "$BASE_URL/notifications" \
     "recipient_ids": ["aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"]
   }')
 
-if run_test "Returns error for non-existent recipient" '"Invalid or inactive recipient"' "$RESPONSE"; then ((PASSED++)); else ((FAILED++)); fi
+if run_test "Returns error for non-existent recipient" 'Invalid or inactive recipient IDs' "$RESPONSE"; then ((PASSED++)); else ((FAILED++)); fi
 
 # =============================================================================
 # Test 12: PATCH /notifications/:id/read (not found)
