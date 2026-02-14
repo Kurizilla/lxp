@@ -9,3 +9,5 @@ export * from './teacher.dto';
 export * from './create-institution.dto';
 export * from './create-subject.dto';
 export * from './create-classroom.dto';
+export * from './create-notification.dto';
+export * from './update-preferences.dto';
