@@ -20,7 +20,8 @@
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:reset": "prisma migrate reset --force",
     "db:setup": "npm run prisma:migrate && npm run prisma:seed",
-    "test:teacher": "bash scripts/test-teacher-endpoints.sh"
+    "test:teacher": "bash scripts/test-teacher-endpoints.sh",
+    "test:notifications": "bash scripts/test-notifications-endpoints.sh"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
