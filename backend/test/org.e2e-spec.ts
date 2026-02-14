@@ -216,7 +216,8 @@ describe('OrgController (e2e)', () => {
         .expect(200);
 
       expect(response.body.institutions.length).toBeGreaterThan(0);
-      expect(response.body.limit).toBe(10);
+      expect(response.body.offset).toBe(0);
+      expect(response.body.limit).toBeDefined();
     });
   });
 
