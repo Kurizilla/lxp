@@ -377,4 +377,58 @@ describe('AdminService', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe('getConfig', () => {
+    it('should return current configuration', async () => {
+      const result = await service.getConfig(adminEmail);
+
+      expect(result.config).toBeDefined();
+      expect(result.config.site_name).toBe('M01 Application');
+      expect(result.config.maintenance_mode).toBe(false);
+      expect(result.config.registration_enabled).toBe(true);
+    });
+  });
+
+  describe('updateConfig', () => {
+    it('should update configuration fields', async () => {
+      const updateDto = {
+        site_name: 'Updated Site',
+        maintenance_mode: true,
+      };
+
+      const result = await service.updateConfig(updateDto, adminEmail);
+
+      expect(result.config.site_name).toBe('Updated Site');
+      expect(result.config.maintenance_mode).toBe(true);
+      expect(result.config.updated_by).toBe(adminEmail);
+      expect(result.message).toBe('Configuration updated successfully');
+    });
+
+    it('should merge feature flags', async () => {
+      const updateDto = {
+        feature_flags: { new_feature: true },
+      };
+
+      const result = await service.updateConfig(updateDto, adminEmail);
+
+      expect(result.config.feature_flags.new_feature).toBe(true);
+    });
+
+    it('should merge custom settings', async () => {
+      const updateDto = {
+        custom_settings: { custom_key: 'custom_value' },
+      };
+
+      const result = await service.updateConfig(updateDto, adminEmail);
+
+      expect(result.config.custom_settings.custom_key).toBe('custom_value');
+    });
+
+    it('should persist config across calls', async () => {
+      await service.updateConfig({ site_name: 'Persisted Site' }, adminEmail);
+      const result = await service.getConfig(adminEmail);
+
+      expect(result.config.site_name).toBe('Persisted Site');
+    });
+  });
 });

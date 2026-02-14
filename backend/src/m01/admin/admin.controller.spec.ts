@@ -74,6 +74,20 @@ describe('AdminController', () => {
     total: 1,
   };
 
+  const mockConfigResponse = {
+    config: {
+      site_name: 'M01 Application',
+      maintenance_mode: false,
+      registration_enabled: true,
+      session_timeout_minutes: 1440,
+      max_login_attempts: 5,
+      feature_flags: {},
+      custom_settings: {},
+      updated_at: new Date().toISOString(),
+    },
+    message: 'Configuration updated successfully',
+  };
+
   beforeEach(async () => {
     const mockAdminService = {
       listUsers: jest.fn().mockResolvedValue(mockUsersResponse),
@@ -83,6 +97,8 @@ describe('AdminController', () => {
       assignRoles: jest.fn().mockResolvedValue(mockAssignRoleResponse),
       assignPermissions: jest.fn().mockResolvedValue(mockAssignPermissionResponse),
       getUserSessions: jest.fn().mockResolvedValue(mockSessionsResponse),
+      getConfig: jest.fn().mockResolvedValue(mockConfigResponse),
+      updateConfig: jest.fn().mockResolvedValue(mockConfigResponse),
     };
 
     const mockPrismaService = {
@@ -224,6 +240,32 @@ describe('AdminController', () => {
       expect(adminService.getUserSessions).toHaveBeenCalledWith(
         'user-123',
         { offset: 0, limit: 10 },
+        'admin@example.com',
+      );
+    });
+  });
+
+  describe('getConfig', () => {
+    it('should return current system configuration', async () => {
+      const result = await controller.getConfig(mockAdminRequest);
+
+      expect(result).toEqual(mockConfigResponse);
+      expect(adminService.getConfig).toHaveBeenCalledWith('admin@example.com');
+    });
+  });
+
+  describe('updateConfig', () => {
+    it('should update system configuration', async () => {
+      const updateDto = {
+        site_name: 'Updated Site',
+        maintenance_mode: true,
+      };
+
+      const result = await controller.updateConfig(updateDto, mockAdminRequest);
+
+      expect(result).toEqual(mockConfigResponse);
+      expect(adminService.updateConfig).toHaveBeenCalledWith(
+        updateDto,
         'admin@example.com',
       );
     });

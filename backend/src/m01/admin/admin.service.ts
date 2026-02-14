@@ -22,6 +22,11 @@ import {
   M01AssignPermissionResponseDto,
 } from '../dto/assign-permission.dto';
 import { M01SessionDto, M01SessionsResponseDto } from '../dto/session.dto';
+import {
+  M01UpdateAdminConfigDto,
+  M01AdminConfigDto,
+  M01AdminConfigResponseDto,
+} from '../dto/admin-config.dto';
 
 /**
  * Pagination parameters
@@ -40,6 +45,21 @@ export class AdminService {
   private readonly BCRYPT_ROUNDS = 10;
   private readonly DEFAULT_LIMIT = 20;
   private readonly MAX_LIMIT = 100;
+
+  /**
+   * In-memory config storage (persists for application lifetime)
+   * In production, this would be stored in database or config service
+   */
+  private config: M01AdminConfigDto = {
+    site_name: 'M01 Application',
+    maintenance_mode: false,
+    registration_enabled: true,
+    session_timeout_minutes: 1440, // 24 hours
+    max_login_attempts: 5,
+    feature_flags: {},
+    custom_settings: {},
+    updated_at: new Date().toISOString(),
+  };
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -440,6 +460,65 @@ export class AdminService {
     return {
       sessions: sessionDtos,
       total,
+    };
+  }
+
+  /**
+   * Get current admin configuration
+   */
+  async getConfig(adminEmail: string): Promise<M01AdminConfigResponseDto> {
+    this.logger.log(`Admin ${adminEmail} retrieved system configuration`);
+
+    return {
+      config: { ...this.config },
+    };
+  }
+
+  /**
+   * Update admin configuration (persists in memory)
+   */
+  async updateConfig(
+    dto: M01UpdateAdminConfigDto,
+    adminEmail: string,
+  ): Promise<M01AdminConfigResponseDto> {
+    // Update only provided fields
+    if (dto.site_name !== undefined) {
+      this.config.site_name = dto.site_name;
+    }
+    if (dto.maintenance_mode !== undefined) {
+      this.config.maintenance_mode = dto.maintenance_mode;
+    }
+    if (dto.registration_enabled !== undefined) {
+      this.config.registration_enabled = dto.registration_enabled;
+    }
+    if (dto.session_timeout_minutes !== undefined) {
+      this.config.session_timeout_minutes = dto.session_timeout_minutes;
+    }
+    if (dto.max_login_attempts !== undefined) {
+      this.config.max_login_attempts = dto.max_login_attempts;
+    }
+    if (dto.feature_flags !== undefined) {
+      this.config.feature_flags = {
+        ...this.config.feature_flags,
+        ...dto.feature_flags,
+      };
+    }
+    if (dto.custom_settings !== undefined) {
+      this.config.custom_settings = {
+        ...this.config.custom_settings,
+        ...dto.custom_settings,
+      };
+    }
+
+    // Update metadata
+    this.config.updated_at = new Date().toISOString();
+    this.config.updated_by = adminEmail;
+
+    this.logger.log(`Admin ${adminEmail} updated system configuration`);
+
+    return {
+      config: { ...this.config },
+      message: 'Configuration updated successfully',
     };
   }
 }

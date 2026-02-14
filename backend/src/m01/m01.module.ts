@@ -14,6 +14,8 @@ import { TeacherController } from './teacher/teacher.controller';
 import { TeacherService } from './teacher/teacher.service';
 import { OrgController } from './org/org.controller';
 import { OrgService } from './org/org.service';
+import { AssistantController } from './assistant/assistant.controller';
+import { AssistantService } from './assistant/assistant.service';
 import { M01AbilityFactory } from './casl/m01-ability.factory';
 import { M01AdminGuard } from './guards/m01-admin.guard';
 import { M01TeacherGuard } from './guards/m01-teacher.guard';
@@ -36,7 +38,7 @@ import { M01TeacherGuard } from './guards/m01-teacher.guard';
       name: EMAIL_QUEUE,
     }),
   ],
-  controllers: [AuthController, AdminController, TeacherController, OrgController],
+  controllers: [AuthController, AdminController, TeacherController, OrgController, AssistantController],
   providers: [
     AuthService,
     JwtStrategy,
@@ -44,6 +46,7 @@ import { M01TeacherGuard } from './guards/m01-teacher.guard';
     AdminService,
     TeacherService,
     OrgService,
+    AssistantService,
     M01AbilityFactory,
     M01AdminGuard,
     M01TeacherGuard,
