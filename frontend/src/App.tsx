@@ -1,6 +1,13 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage, RecoverPasswordPage, SessionsPage } from '@/features/auth';
-import { AuthGuard, GuestGuard } from '@/routes';
+import {
+  AdminUsersPage,
+  AdminRolesPage,
+  AdminInstitutionsPage,
+  AdminSubjectsPage,
+  AdminClassroomsPage,
+} from '@/features/admin';
+import { AuthGuard, GuestGuard, AdminGuard } from '@/routes';
 
 /**
  * Main application component with routing
@@ -33,6 +40,48 @@ export function App() {
           <AuthGuard>
             <SessionsPage />
           </AuthGuard>
+        }
+      />
+
+      {/* Admin routes */}
+      <Route
+        path="/admin/users"
+        element={
+          <AdminGuard>
+            <AdminUsersPage />
+          </AdminGuard>
+        }
+      />
+      <Route
+        path="/admin/roles"
+        element={
+          <AdminGuard>
+            <AdminRolesPage />
+          </AdminGuard>
+        }
+      />
+      <Route
+        path="/admin/institutions"
+        element={
+          <AdminGuard>
+            <AdminInstitutionsPage />
+          </AdminGuard>
+        }
+      />
+      <Route
+        path="/admin/subjects"
+        element={
+          <AdminGuard>
+            <AdminSubjectsPage />
+          </AdminGuard>
+        }
+      />
+      <Route
+        path="/admin/classrooms"
+        element={
+          <AdminGuard>
+            <AdminClassroomsPage />
+          </AdminGuard>
         }
       />
 
