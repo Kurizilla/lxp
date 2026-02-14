@@ -74,6 +74,18 @@ describe('AdminController', () => {
     total: 1,
   };
 
+  const mockConfigResponse = {
+    config: {
+      assistant_model: 'gpt-4',
+      assistant_enabled: true,
+      system_prompt: null,
+      feature_flags: {},
+      settings: {},
+      updated_at: new Date(),
+    },
+    message: 'Configuration updated successfully',
+  };
+
   beforeEach(async () => {
     const mockAdminService = {
       listUsers: jest.fn().mockResolvedValue(mockUsersResponse),
@@ -83,6 +95,8 @@ describe('AdminController', () => {
       assignRoles: jest.fn().mockResolvedValue(mockAssignRoleResponse),
       assignPermissions: jest.fn().mockResolvedValue(mockAssignPermissionResponse),
       getUserSessions: jest.fn().mockResolvedValue(mockSessionsResponse),
+      getConfig: jest.fn().mockResolvedValue(mockConfigResponse),
+      updateConfig: jest.fn().mockResolvedValue(mockConfigResponse),
     };
 
     const mockPrismaService = {
@@ -224,6 +238,32 @@ describe('AdminController', () => {
       expect(adminService.getUserSessions).toHaveBeenCalledWith(
         'user-123',
         { offset: 0, limit: 10 },
+        'admin@example.com',
+      );
+    });
+  });
+
+  describe('getConfig', () => {
+    it('should return current config', async () => {
+      const result = await controller.getConfig(mockAdminRequest);
+
+      expect(result).toEqual(mockConfigResponse);
+      expect(adminService.getConfig).toHaveBeenCalledWith('admin@example.com');
+    });
+  });
+
+  describe('updateConfig', () => {
+    it('should update config', async () => {
+      const updateDto = {
+        assistant_enabled: false,
+        assistant_model: 'gpt-3.5-turbo',
+      };
+
+      const result = await controller.updateConfig(updateDto, mockAdminRequest);
+
+      expect(result).toEqual(mockConfigResponse);
+      expect(adminService.updateConfig).toHaveBeenCalledWith(
+        updateDto,
         'admin@example.com',
       );
     });

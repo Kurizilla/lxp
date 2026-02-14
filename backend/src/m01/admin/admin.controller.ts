@@ -26,6 +26,10 @@ import {
   M01AssignPermissionResponseDto,
 } from '../dto/assign-permission.dto';
 import { M01SessionsResponseDto } from '../dto/session.dto';
+import {
+  M01UpdateAdminConfigDto,
+  M01AdminConfigResponseDto,
+} from '../dto/admin-config.dto';
 
 /**
  * Query parameters for pagination
@@ -133,5 +137,26 @@ export class AdminController {
     @Req() req: M01AdminRequest,
   ): Promise<M01SessionsResponseDto> {
     return this.adminService.getUserSessions(id, query, req.user.email);
+  }
+
+  /**
+   * GET /admin/config
+   * Get current admin configuration
+   */
+  @Get('config')
+  async getConfig(@Req() req: M01AdminRequest): Promise<M01AdminConfigResponseDto> {
+    return this.adminService.getConfig(req.user.email);
+  }
+
+  /**
+   * PATCH /admin/config
+   * Update admin configuration
+   */
+  @Patch('config')
+  async updateConfig(
+    @Body() dto: M01UpdateAdminConfigDto,
+    @Req() req: M01AdminRequest,
+  ): Promise<M01AdminConfigResponseDto> {
+    return this.adminService.updateConfig(dto, req.user.email);
   }
 }

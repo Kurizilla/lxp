@@ -377,4 +377,68 @@ describe('AdminService', () => {
       ).rejects.toThrow(NotFoundException);
     });
   });
+
+  describe('getConfig', () => {
+    it('should return current config', async () => {
+      const result = await service.getConfig(adminEmail);
+
+      expect(result.config).toBeDefined();
+      expect(result.config.assistant_model).toBe('gpt-4');
+      expect(result.config.assistant_enabled).toBe(true);
+    });
+  });
+
+  describe('updateConfig', () => {
+    it('should update config with provided values', async () => {
+      const updateDto = {
+        assistant_model: 'gpt-3.5-turbo',
+        assistant_enabled: false,
+      };
+
+      const result = await service.updateConfig(updateDto, adminEmail);
+
+      expect(result.config.assistant_model).toBe('gpt-3.5-turbo');
+      expect(result.config.assistant_enabled).toBe(false);
+      expect(result.message).toBe('Configuration updated successfully');
+    });
+
+    it('should merge feature flags', async () => {
+      const updateDto = {
+        feature_flags: { new_feature: true },
+      };
+
+      const result = await service.updateConfig(updateDto, adminEmail);
+
+      expect(result.config.feature_flags.new_feature).toBe(true);
+    });
+
+    it('should merge settings', async () => {
+      const updateDto = {
+        settings: { setting1: 'value1' },
+      };
+
+      const result = await service.updateConfig(updateDto, adminEmail);
+
+      expect(result.config.settings.setting1).toBe('value1');
+    });
+
+    it('should update system_prompt', async () => {
+      const updateDto = {
+        system_prompt: 'New system prompt',
+      };
+
+      const result = await service.updateConfig(updateDto, adminEmail);
+
+      expect(result.config.system_prompt).toBe('New system prompt');
+    });
+
+    it('should update updated_at timestamp', async () => {
+      const beforeUpdate = new Date();
+      const updateDto = { assistant_enabled: true };
+
+      const result = await service.updateConfig(updateDto, adminEmail);
+
+      expect(result.config.updated_at.getTime()).toBeGreaterThanOrEqual(beforeUpdate.getTime());
+    });
+  });
 });
