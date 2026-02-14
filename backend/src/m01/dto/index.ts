@@ -5,3 +5,4 @@ export * from './session.dto';
 export * from './create-user.dto';
 export * from './assign-role.dto';
 export * from './assign-permission.dto';
+export * from './teacher.dto';
