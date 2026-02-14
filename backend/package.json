@@ -20,7 +20,8 @@
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:reset": "prisma migrate reset --force",
     "db:setup": "npm run prisma:migrate && npm run prisma:seed",
-    "test:teacher": "bash scripts/test-teacher-endpoints.sh"
+    "test:teacher": "bash scripts/test-teacher-endpoints.sh",
+    "test:notifications": "bash scripts/test-notifications-endpoints.sh"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -48,6 +49,7 @@
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^10.0.0",
+    "@nestjs/event-emitter": "^3.0.1",
     "@nestjs/jwt": "^10.2.0",
     "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.22",

@@ -182,6 +182,39 @@ backend/
 | GET | `/teacher/classrooms` | Listar aulas donde es teacher |
 | GET | `/teacher/classrooms?institution_id=<uuid>` | Filtrar aulas por institución |
 
+### Notificaciones (`/notifications`)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/notifications` | Crear notificación |
+| GET | `/notifications` | Listar notificaciones del usuario |
+| GET | `/notifications?unread_only=true` | Filtrar solo no leídas |
+| GET | `/notifications?priority=high` | Filtrar por prioridad |
+| GET | `/notifications?type=announcement` | Filtrar por tipo |
+| GET | `/notifications?limit=10&offset=0` | Paginación |
+| PATCH | `/notifications/:id/read` | Marcar como leída |
+| GET | `/notifications/preferences` | Ver preferencias de notificación |
+| PATCH | `/notifications/preferences` | Actualizar preferencias |
+
+#### Tipos de notificación
+- `system` - Notificaciones del sistema
+- `announcement` - Anuncios
+- `reminder` - Recordatorios
+- `alert` - Alertas
+- `message` - Mensajes
+
+#### Prioridades
+- `low` - Baja
+- `normal` - Normal
+- `high` - Alta
+- `urgent` - Urgente
+
+#### Canales (para preferencias)
+- `in_app` - En la aplicación
+- `email` - Correo electrónico
+- `push` - Notificaciones push
+- `sms` - SMS
+
 ## Paginación
 
 Los endpoints de listado soportan paginación mediante query params:
@@ -238,6 +271,94 @@ El script prueba:
 - ✅ Validación de UUID inválido
 - ✅ Acceso sin token (401)
 - ✅ Acceso con rol student (403)
+
+## Probar Notifications Endpoints
+
+### Opción 1: Script automático (recomendado)
+
+```bash
+# Asegúrate de que el servidor esté corriendo
+npm start &
+
+# Ejecutar tests de notifications
+npm run test:notifications
+
+# O especificar puerto
+npm run test:notifications 3002
+```
+
+El script prueba:
+- ✅ Login como admin
+- ✅ GET /notifications (lista vacía inicial)
+- ✅ GET /notifications/preferences
+- ✅ POST /notifications (crear)
+- ✅ GET /notifications (con notificación creada)
+- ✅ Filtro unread_only=true
+- ✅ Filtro priority=high
+- ✅ PATCH /notifications/:id/read (marcar leída)
+- ✅ PATCH /notifications/:id/read (ya leída)
+- ✅ PATCH /notifications/preferences (actualizar)
+- ✅ Validación recipient_ids inválidos
+- ✅ 404 para notificación no existente
+- ✅ 401 sin token
+- ✅ Paginación (limit, offset)
+
+### Opción 2: Manual con curl
+
+```bash
+# 1. Login para obtener token
+TOKEN=$(curl -s -X POST http://localhost:3001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@test.com", "password": "Admin123!"}' | jq -r '.access_token')
+
+# 2. Obtener ID del usuario (está en el token)
+ADMIN_ID=$(curl -s -X POST http://localhost:3001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@test.com", "password": "Admin123!"}' | jq -r '.user.id')
+
+# 3. Crear notificación
+curl -X POST http://localhost:3001/notifications \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"title\": \"Bienvenido al sistema\",
+    \"message\": \"Esta es tu primera notificación\",
+    \"type\": \"announcement\",
+    \"priority\": \"normal\",
+    \"recipient_ids\": [\"$ADMIN_ID\"]
+  }"
+
+# 4. Listar notificaciones
+curl http://localhost:3001/notifications \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# 5. Filtrar solo no leídas
+curl "http://localhost:3001/notifications?unread_only=true" \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# 6. Filtrar por prioridad
+curl "http://localhost:3001/notifications?priority=high" \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# 7. Marcar como leída (reemplazar NOTIFICATION_ID)
+curl -X PATCH http://localhost:3001/notifications/NOTIFICATION_ID/read \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# 8. Ver preferencias
+curl http://localhost:3001/notifications/preferences \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# 9. Actualizar preferencias
+curl -X PATCH http://localhost:3001/notifications/preferences \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "preferences": [
+      {"type": "announcement", "channel": "in_app", "enabled": true},
+      {"type": "system", "channel": "email", "enabled": false}
+    ]
+  }' | jq
+```
 
 ### Opción 2: Manual con curl
 
