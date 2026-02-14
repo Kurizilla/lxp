@@ -181,10 +181,43 @@ async function main() {
   });
   console.log('✅ Enrolled teacher in classroom');
 
+  // Create student user (for testing role restrictions)
+  const studentPasswordHash = await bcrypt.hash('Student123!', 10);
+  const studentUser = await prisma.m01_users.upsert({
+    where: { email: 'student@test.com' },
+    update: { password_hash: studentPasswordHash },
+    create: {
+      email: 'student@test.com',
+      password_hash: studentPasswordHash,
+      first_name: 'Test',
+      last_name: 'Student',
+      is_active: true,
+    },
+  });
+  console.log('✅ Created student user:', studentUser.email);
+
+  // Assign student role
+  await prisma.m01_user_roles.upsert({
+    where: {
+      user_id_role_id: {
+        user_id: studentUser.id,
+        role_id: studentRole.id,
+      },
+    },
+    update: {},
+    create: {
+      user_id: studentUser.id,
+      role_id: studentRole.id,
+      granted_by: 'seed',
+    },
+  });
+  console.log('✅ Assigned student role to student user');
+
   console.log('\n🎉 Seed completed successfully!\n');
   console.log('Test accounts:');
   console.log('  Admin:   admin@test.com / Admin123!');
   console.log('  Teacher: teacher@test.com / Teacher123!');
+  console.log('  Student: student@test.com / Student123!');
 }
 
 main()

@@ -217,13 +217,35 @@ curl http://localhost:3001/admin/institutions \
 
 ## Probar Teacher Endpoints
 
-Después de ejecutar `npm run db:setup`, puedes probar los endpoints de teacher:
+### Opción 1: Script automático (recomendado)
+
+```bash
+# Asegúrate de que el servidor esté corriendo
+npm start &
+
+# Ejecutar tests de teacher endpoints
+npm run test:teacher
+
+# O especificar puerto
+npm run test:teacher 3002
+```
+
+El script prueba:
+- ✅ Login como teacher
+- ✅ GET /teacher/institutions
+- ✅ GET /teacher/classrooms
+- ✅ Filtro por institution_id
+- ✅ Validación de UUID inválido
+- ✅ Acceso sin token (401)
+- ✅ Acceso con rol student (403)
+
+### Opción 2: Manual con curl
 
 ```bash
 # 1. Login como teacher
 TOKEN=$(curl -s -X POST http://localhost:3001/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email": "teacher@test.com", "password": "Teacher123!"}' | jq -r '.token')
+  -d '{"email": "teacher@test.com", "password": "Teacher123!"}' | jq -r '.access_token')
 
 # 2. Obtener instituciones del teacher
 curl http://localhost:3001/teacher/institutions \
