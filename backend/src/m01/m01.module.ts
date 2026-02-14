@@ -10,6 +10,8 @@ import { JwtStrategy } from './auth/jwt.strategy';
 import { EmailProcessor, EMAIL_QUEUE } from './auth/email.processor';
 import { AdminController } from './admin/admin.controller';
 import { AdminService } from './admin/admin.service';
+import { OrgController } from './org/org.controller';
+import { OrgService } from './org/org.service';
 import { M01AbilityFactory } from './casl/m01-ability.factory';
 import { M01AdminGuard } from './guards/m01-admin.guard';
 
@@ -31,15 +33,16 @@ import { M01AdminGuard } from './guards/m01-admin.guard';
       name: EMAIL_QUEUE,
     }),
   ],
-  controllers: [AuthController, AdminController],
+  controllers: [AuthController, AdminController, OrgController],
   providers: [
     AuthService,
     JwtStrategy,
     EmailProcessor,
     AdminService,
+    OrgService,
     M01AbilityFactory,
     M01AdminGuard,
   ],
-  exports: [AuthService, M01AbilityFactory],
+  exports: [AuthService, M01AbilityFactory, OrgService],
 })
 export class M01Module {}
