@@ -11,3 +11,5 @@ export * from './create-subject.dto';
 export * from './create-classroom.dto';
 export * from './create-notification.dto';
 export * from './update-preferences.dto';
+export * from './assistant-query.dto';
+export * from './admin-config.dto';

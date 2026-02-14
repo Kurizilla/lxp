@@ -442,6 +442,186 @@ describe('OrgController (e2e)', () => {
   });
 
   // ============================================================================
+  // ASSISTANT
+  // ============================================================================
+
+  describe('Assistant Query', () => {
+    it('POST /assistant/query - should return stub response without context', async () => {
+      const queryDto = {
+        query: '¿Cómo agrego estudiantes?',
+      };
+
+      const response = await request(app.getHttpServer())
+        .post('/assistant/query')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(queryDto)
+        .expect(200);
+
+      expect(response.body.response).toBeDefined();
+      expect(response.body.response).toContain('[Stub]');
+      expect(response.body.suggestions).toBeDefined();
+      expect(Array.isArray(response.body.suggestions)).toBe(true);
+      expect(response.body.metadata).toBeDefined();
+      expect(response.body.metadata.context_used).toBe(false);
+      expect(response.body.metadata.processed_at).toBeDefined();
+    });
+
+    it('POST /assistant/query - should return context-aware response for classroom route', async () => {
+      const queryDto = {
+        query: '¿Cómo agrego estudiantes?',
+        route: '/teacher/classrooms',
+        module: 'm01',
+      };
+
+      const response = await request(app.getHttpServer())
+        .post('/assistant/query')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(queryDto)
+        .expect(200);
+
+      expect(response.body.response).toContain('[Stub]');
+      expect(response.body.response).toContain('aulas');
+      expect(response.body.route).toBe('/teacher/classrooms');
+      expect(response.body.module).toBe('m01');
+      expect(response.body.metadata.context_used).toBe(true);
+      expect(response.body.suggestions).toContain('¿Cómo agregar estudiantes a un aula?');
+    });
+
+    it('POST /assistant/query - should return context-aware response for admin route', async () => {
+      const queryDto = {
+        query: '¿Cómo gestiono usuarios?',
+        route: '/admin/users',
+      };
+
+      const response = await request(app.getHttpServer())
+        .post('/assistant/query')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(queryDto)
+        .expect(200);
+
+      expect(response.body.response).toContain('[Stub]');
+      expect(response.body.response).toContain('administración');
+      expect(response.body.metadata.context_used).toBe(true);
+      expect(response.body.suggestions).toContain('¿Cómo crear un nuevo usuario?');
+    });
+
+    it('POST /assistant/query - should validate empty query', async () => {
+      const queryDto = {
+        query: '',
+      };
+
+      await request(app.getHttpServer())
+        .post('/assistant/query')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(queryDto)
+        .expect(400);
+    });
+
+    it('POST /assistant/query - should reject without auth', async () => {
+      await request(app.getHttpServer())
+        .post('/assistant/query')
+        .send({ query: 'test' })
+        .expect(401);
+    });
+  });
+
+  // ============================================================================
+  // ADMIN CONFIG
+  // ============================================================================
+
+  describe('Admin Config', () => {
+    it('GET /admin/config - should return current config', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/admin/config')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(response.body.config).toBeDefined();
+      expect(response.body.config.assistant_model).toBeDefined();
+      expect(response.body.config.assistant_enabled).toBeDefined();
+      expect(response.body.config.feature_flags).toBeDefined();
+      expect(response.body.config.settings).toBeDefined();
+      expect(response.body.config.updated_at).toBeDefined();
+    });
+
+    it('PATCH /admin/config - should update config', async () => {
+      const updateDto = {
+        assistant_model: 'gpt-3.5-turbo',
+        assistant_enabled: false,
+        feature_flags: { test_feature: true },
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch('/admin/config')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(updateDto)
+        .expect(200);
+
+      expect(response.body.config.assistant_model).toBe('gpt-3.5-turbo');
+      expect(response.body.config.assistant_enabled).toBe(false);
+      expect(response.body.config.feature_flags.test_feature).toBe(true);
+      expect(response.body.message).toBe('Configuration updated successfully');
+    });
+
+    it('PATCH /admin/config - should merge feature_flags', async () => {
+      const updateDto = {
+        feature_flags: { another_feature: true },
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch('/admin/config')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(updateDto)
+        .expect(200);
+
+      // Should have both features
+      expect(response.body.config.feature_flags.test_feature).toBe(true);
+      expect(response.body.config.feature_flags.another_feature).toBe(true);
+    });
+
+    it('PATCH /admin/config - should update system_prompt', async () => {
+      const updateDto = {
+        system_prompt: 'You are a helpful educational assistant.',
+      };
+
+      const response = await request(app.getHttpServer())
+        .patch('/admin/config')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(updateDto)
+        .expect(200);
+
+      expect(response.body.config.system_prompt).toBe('You are a helpful educational assistant.');
+    });
+
+    it('GET /admin/config - should persist changes', async () => {
+      const response = await request(app.getHttpServer())
+        .get('/admin/config')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      // Verify previous updates persisted
+      expect(response.body.config.assistant_model).toBe('gpt-3.5-turbo');
+      expect(response.body.config.assistant_enabled).toBe(false);
+      expect(response.body.config.feature_flags.test_feature).toBe(true);
+      expect(response.body.config.feature_flags.another_feature).toBe(true);
+      expect(response.body.config.system_prompt).toBe('You are a helpful educational assistant.');
+    });
+
+    it('GET /admin/config - should reject without auth', async () => {
+      await request(app.getHttpServer())
+        .get('/admin/config')
+        .expect(401);
+    });
+
+    it('PATCH /admin/config - should reject without auth', async () => {
+      await request(app.getHttpServer())
+        .patch('/admin/config')
+        .send({ assistant_enabled: true })
+        .expect(401);
+    });
+  });
+
+  // ============================================================================
   // AUTHORIZATION
   // ============================================================================
 

@@ -215,6 +215,93 @@ backend/
 - `push` - Notificaciones push
 - `sms` - SMS
 
+### Asistente IA (`/assistant`)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/assistant/query` | Consulta al asistente con respuesta contextual |
+
+#### Request Body para `/assistant/query`
+```json
+{
+  "query": "¿Cómo agrego estudiantes?",
+  "route": "/teacher/classrooms",
+  "module": "m01",
+  "classroom_id": "<uuid>",
+  "subject_id": "<uuid>",
+  "context": {}
+}
+```
+
+- `query` (requerido): La consulta del usuario
+- `route` (opcional): Ruta actual en la aplicación (ej: `/admin/users`, `/teacher/classrooms`)
+- `module` (opcional): Módulo actual (ej: `m01`, `content`, `assessment`)
+- `classroom_id` (opcional): UUID del aula actual
+- `subject_id` (opcional): UUID de la materia actual
+- `context` (opcional): Objeto con contexto adicional
+
+#### Response
+```json
+{
+  "response": "[Stub] Información sobre aulas...",
+  "route": "/teacher/classrooms",
+  "module": "m01",
+  "suggestions": [
+    "¿Cómo agregar estudiantes a un aula?",
+    "¿Cómo ver el progreso del curso?",
+    "¿Cómo configurar horarios?"
+  ],
+  "metadata": {
+    "processed_at": "2026-02-14T22:47:58.678Z",
+    "context_used": true
+  }
+}
+```
+
+El asistente devuelve respuestas contextuales basadas en:
+- **route**: Si incluye `classroom`, `admin`, `subject`, `notification`, etc.
+- **module**: Si es `m01` (auth), `content`, `assessment`, `analytics`, etc.
+
+### Admin - Configuración (`/admin`)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| GET | `/admin/config` | Obtener configuración actual |
+| PATCH | `/admin/config` | Actualizar configuración |
+
+#### Request Body para `PATCH /admin/config`
+```json
+{
+  "assistant_model": "gpt-4",
+  "assistant_enabled": true,
+  "system_prompt": "Eres un asistente educativo...",
+  "feature_flags": {
+    "beta_features": true,
+    "new_ui": false
+  },
+  "settings": {
+    "max_tokens": 1000
+  }
+}
+```
+
+Todos los campos son opcionales. Los objetos `feature_flags` y `settings` se mezclan con los valores existentes.
+
+#### Response
+```json
+{
+  "config": {
+    "assistant_model": "gpt-4",
+    "assistant_enabled": true,
+    "system_prompt": "Eres un asistente educativo...",
+    "feature_flags": {"beta_features": true},
+    "settings": {"max_tokens": 1000},
+    "updated_at": "2026-02-14T22:48:05.979Z"
+  },
+  "message": "Configuration updated successfully"
+}
+```
+
 ## Paginación
 
 Los endpoints de listado soportan paginación mediante query params:

@@ -22,6 +22,11 @@ import {
   M01AssignPermissionResponseDto,
 } from '../dto/assign-permission.dto';
 import { M01SessionDto, M01SessionsResponseDto } from '../dto/session.dto';
+import {
+  M01UpdateAdminConfigDto,
+  M01AdminConfigDto,
+  M01AdminConfigResponseDto,
+} from '../dto/admin-config.dto';
 
 /**
  * Pagination parameters
@@ -40,6 +45,19 @@ export class AdminService {
   private readonly BCRYPT_ROUNDS = 10;
   private readonly DEFAULT_LIMIT = 20;
   private readonly MAX_LIMIT = 100;
+
+  /**
+   * In-memory config storage (persists during application lifetime)
+   * In production, this would be stored in database
+   */
+  private config: M01AdminConfigDto = {
+    assistant_model: 'gpt-4',
+    assistant_enabled: true,
+    system_prompt: null,
+    feature_flags: {},
+    settings: {},
+    updated_at: new Date(),
+  };
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -440,6 +458,57 @@ export class AdminService {
     return {
       sessions: sessionDtos,
       total,
+    };
+  }
+
+  /**
+   * Get current admin configuration
+   */
+  async getConfig(adminEmail: string): Promise<M01AdminConfigResponseDto> {
+    this.logger.log(`Admin ${adminEmail} retrieved config`);
+
+    return {
+      config: { ...this.config },
+    };
+  }
+
+  /**
+   * Update admin configuration
+   */
+  async updateConfig(
+    dto: M01UpdateAdminConfigDto,
+    adminEmail: string,
+  ): Promise<M01AdminConfigResponseDto> {
+    // Update only provided fields
+    if (dto.assistant_model !== undefined) {
+      this.config.assistant_model = dto.assistant_model;
+    }
+    if (dto.assistant_enabled !== undefined) {
+      this.config.assistant_enabled = dto.assistant_enabled;
+    }
+    if (dto.system_prompt !== undefined) {
+      this.config.system_prompt = dto.system_prompt;
+    }
+    if (dto.feature_flags !== undefined) {
+      this.config.feature_flags = {
+        ...this.config.feature_flags,
+        ...dto.feature_flags,
+      };
+    }
+    if (dto.settings !== undefined) {
+      this.config.settings = {
+        ...this.config.settings,
+        ...dto.settings,
+      };
+    }
+
+    this.config.updated_at = new Date();
+
+    this.logger.log(`Admin ${adminEmail} updated config`);
+
+    return {
+      config: { ...this.config },
+      message: 'Configuration updated successfully',
     };
   }
 }
