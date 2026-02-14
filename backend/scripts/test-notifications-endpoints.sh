@@ -190,7 +190,7 @@ if [ -n "$NOTIFICATION_ID" ]; then
   RESPONSE=$(curl -s -X PATCH "$BASE_URL/notifications/$NOTIFICATION_ID/read" \
     -H "Authorization: Bearer $TOKEN")
   
-  if run_test "Already read message" '"already marked as read"' "$RESPONSE"; then ((PASSED++)); else ((FAILED++)); fi
+  if run_test "Already read message" '"was already marked as read"' "$RESPONSE"; then ((PASSED++)); else ((FAILED++)); fi
 else
   echo -e "${YELLOW}⏭️  SKIP${NC}: No notification ID"
 fi
@@ -221,19 +221,20 @@ if run_test "Preferences persisted (announcement)" '"type":"announcement"' "$VER
 if run_test "Preferences persisted (system)" '"type":"system"' "$VERIFY"; then ((PASSED++)); else ((FAILED++)); fi
 
 # =============================================================================
-# Test 11: POST /notifications with invalid recipient
+# Test 11: POST /notifications with non-existent recipient
 # =============================================================================
-echo -e "\n${YELLOW}Test 11: POST /notifications (invalid recipient)${NC}"
+echo -e "\n${YELLOW}Test 11: POST /notifications (non-existent recipient)${NC}"
+# Use a valid UUID format that doesn't exist in the database
 RESPONSE=$(curl -s -X POST "$BASE_URL/notifications" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "title": "Test",
     "message": "Test",
-    "recipient_ids": ["00000000-0000-0000-0000-000000000000"]
+    "recipient_ids": ["aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"]
   }')
 
-if run_test "Returns error for invalid recipient" '"Invalid or inactive recipient"' "$RESPONSE"; then ((PASSED++)); else ((FAILED++)); fi
+if run_test "Returns error for non-existent recipient" '"Invalid or inactive recipient"' "$RESPONSE"; then ((PASSED++)); else ((FAILED++)); fi
 
 # =============================================================================
 # Test 12: PATCH /notifications/:id/read (not found)
