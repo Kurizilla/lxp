@@ -2,3 +2,6 @@ export * from './login.dto';
 export * from './google-login.dto';
 export * from './forgot-password.dto';
 export * from './session.dto';
+export * from './create-user.dto';
+export * from './assign-role.dto';
+export * from './assign-permission.dto';

@@ -18,17 +18,24 @@
     "prisma:migrate": "prisma migrate dev"
   },
   "jest": {
-    "moduleFileExtensions": ["js", "json", "ts"],
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
     "rootDir": "src",
     "testRegex": ".*\\.spec\\.ts$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
-    "collectCoverageFrom": ["**/*.(t|j)s"],
+    "collectCoverageFrom": [
+      "**/*.(t|j)s"
+    ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   },
   "dependencies": {
+    "@casl/ability": "^6.8.0",
     "@nestjs/bull": "^10.2.3",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.3.0",
