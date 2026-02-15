@@ -7,19 +7,23 @@ interface AuthGuardProps {
 }
 
 /**
+ * Check if user has valid authentication
+ */
+function use_valid_auth() {
+  const { is_authenticated, expires_at } = use_auth_store();
+  const is_token_valid = expires_at ? Date.now() < expires_at : false;
+  return is_authenticated && is_token_valid;
+}
+
+/**
  * Protected route guard
  * Redirects unauthenticated users to login page
  */
 export function AuthGuard({ children }: AuthGuardProps) {
-  const { is_authenticated, expires_at } = use_auth_store();
+  const has_valid_auth = use_valid_auth();
   const location = useLocation();
 
-  // Check if token is expired
-  const is_token_valid = expires_at ? Date.now() < expires_at : false;
-  const has_valid_auth = is_authenticated && is_token_valid;
-
   if (!has_valid_auth) {
-    // Redirect to login with return URL
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -28,18 +32,22 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
 /**
  * Guest route guard
- * Redirects authenticated users to dashboard
+ * Redirects authenticated users to their appropriate dashboard based on role
  */
 export function GuestGuard({ children }: AuthGuardProps) {
-  const { is_authenticated, expires_at } = use_auth_store();
-
-  // Check if token is valid
-  const is_token_valid = expires_at ? Date.now() < expires_at : false;
-  const has_valid_auth = is_authenticated && is_token_valid;
+  const has_valid_auth = use_valid_auth();
+  const { user_role } = use_auth_store();
 
   if (has_valid_auth) {
-    // Redirect to sessions page (or dashboard)
-    return <Navigate to="/sessions" replace />;
+    // Redirect based on detected role
+    if (user_role === 'admin') {
+      return <Navigate to="/admin/users" replace />;
+    } else if (user_role === 'teacher') {
+      return <Navigate to="/teacher/select-institution" replace />;
+    } else {
+      // Default for student or unknown role
+      return <Navigate to="/sessions" replace />;
+    }
   }
 
   return <>{children}</>;
@@ -52,25 +60,23 @@ interface AdminGuardProps {
 
 /**
  * Admin route guard
- * Ensures user is authenticated and has admin access
- * In the future, this can check for specific permissions/roles
+ * Ensures user is authenticated and has admin role
+ * Redirects non-admin users to teacher dashboard
  */
 export function AdminGuard({ children }: AdminGuardProps) {
-  const { is_authenticated, expires_at } = use_auth_store();
+  const has_valid_auth = use_valid_auth();
+  const { user_role } = use_auth_store();
   const location = useLocation();
 
-  // Check if token is valid
-  const is_token_valid = expires_at ? Date.now() < expires_at : false;
-  const has_valid_auth = is_authenticated && is_token_valid;
-
   if (!has_valid_auth) {
-    // Redirect to login with return URL
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // For now, any authenticated user can access admin pages
-  // In production, check user roles/permissions here
-  // Example: const { user } = use_auth_store(); if (!user?.roles?.some(r => r.name === 'admin')) return <Navigate to="/unauthorized" />
+  // Check if user has admin role
+  if (user_role !== 'admin') {
+    // Redirect non-admin users to teacher dashboard
+    return <Navigate to="/teacher/select-institution" replace />;
+  }
 
   return <>{children}</>;
 }
@@ -81,24 +87,23 @@ interface TeacherGuardProps {
 
 /**
  * Teacher route guard
- * Ensures user is authenticated and has teacher access
- * In the future, this can check for teacher role via CASL RBAC
+ * Ensures user is authenticated and has teacher role
+ * Redirects non-teacher users to admin dashboard
  */
 export function TeacherGuard({ children }: TeacherGuardProps) {
-  const { is_authenticated, expires_at } = use_auth_store();
+  const has_valid_auth = use_valid_auth();
+  const { user_role } = use_auth_store();
   const location = useLocation();
 
-  // Check if token is valid
-  const is_token_valid = expires_at ? Date.now() < expires_at : false;
-  const has_valid_auth = is_authenticated && is_token_valid;
-
   if (!has_valid_auth) {
-    // Redirect to login with return URL
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  // For now, any authenticated user can access teacher pages
-  // In production, check user roles/permissions here for teacher role
+  // Check if user has teacher role
+  if (user_role !== 'teacher') {
+    // Redirect non-teacher users to admin dashboard
+    return <Navigate to="/admin/users" replace />;
+  }
 
   return <>{children}</>;
 }
