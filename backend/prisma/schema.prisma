@@ -42,6 +42,11 @@ model m01_users {
   class_session_state_changes m09_class_session_state_logs[]     @relation("StateChangeUser")
   created_whiteboard_elements m09_whiteboard_elements[]          @relation("WhiteboardElementCreator")
 
+  // M09 Offline Sync Relations
+  offline_queue_items         m09_offline_queue[]                @relation("UserOfflineQueue")
+  sync_conflicts              m09_sync_conflicts[]               @relation("UserSyncConflicts")
+  resolved_conflicts          m09_sync_conflicts[]               @relation("ConflictResolver")
+
   @@index([email])
   @@index([google_id])
   @@index([is_active])
@@ -547,4 +552,97 @@ model m09_whiteboard_elements {
   @@index([created_by])
   @@index([created_at])
   @@index([z_index])
+}
+
+// ============================================================================
+// M09 - Offline Sync
+// ============================================================================
+
+/// Sync operation type enum
+enum M09SyncOperationType {
+  create
+  update
+  delete
+}
+
+/// Sync status enum
+enum M09SyncStatus {
+  pending
+  syncing
+  synced
+  failed
+  conflict
+}
+
+/// Conflict resolution status enum
+enum M09ConflictResolutionStatus {
+  pending
+  client_wins
+  server_wins
+  merged
+  discarded
+}
+
+/// Offline queue for storing operations performed offline
+model m09_offline_queue {
+  id             String                @id @default(uuid())
+  user_id        String
+  entity_type    String                // e.g., 'whiteboard_element', 'calendar_event', 'class_session'
+  entity_id      String?               // ID of the entity being modified (null for create operations)
+  operation_type M09SyncOperationType
+  payload        Json                  // The data for the operation
+  client_version Int                   @default(1)
+  server_version Int?                  // Version on server at time of sync (for conflict detection)
+  status         M09SyncStatus         @default(pending)
+  error_message  String?               // Error message if sync failed
+  retry_count    Int                   @default(0)
+  client_timestamp DateTime            // Timestamp when operation was created on client
+  synced_at      DateTime?             // Timestamp when operation was synced to server
+  created_at     DateTime              @default(now())
+  updated_at     DateTime              @updatedAt
+
+  // Relations
+  user      m01_users          @relation("UserOfflineQueue", fields: [user_id], references: [id], onDelete: Cascade)
+  conflicts m09_sync_conflicts[] @relation("QueueConflicts")
+
+  @@index([user_id])
+  @@index([entity_type])
+  @@index([entity_id])
+  @@index([status])
+  @@index([client_timestamp])
+  @@index([created_at])
+}
+
+/// Sync conflicts for tracking version conflicts during bidirectional sync
+model m09_sync_conflicts {
+  id                 String                       @id @default(uuid())
+  queue_item_id      String
+  user_id            String
+  entity_type        String
+  entity_id          String
+  client_version     Int
+  server_version     Int
+  client_data        Json                         // Data from client
+  server_data        Json                         // Data from server
+  merged_data        Json?                        // Merged data (if applicable)
+  resolution_status  M09ConflictResolutionStatus  @default(pending)
+  resolved_by        String?                      // User who resolved the conflict
+  resolved_at        DateTime?
+  has_version_conflict Boolean                    @default(true)
+  conflict_details   Json?                        // Details about what conflicted
+  created_at         DateTime                     @default(now())
+  updated_at         DateTime                     @updatedAt
+
+  // Relations
+  queue_item m09_offline_queue @relation("QueueConflicts", fields: [queue_item_id], references: [id], onDelete: Cascade)
+  user       m01_users         @relation("UserSyncConflicts", fields: [user_id], references: [id], onDelete: Cascade)
+  resolver   m01_users?        @relation("ConflictResolver", fields: [resolved_by], references: [id], onDelete: SetNull)
+
+  @@index([queue_item_id])
+  @@index([user_id])
+  @@index([entity_type])
+  @@index([entity_id])
+  @@index([resolution_status])
+  @@index([has_version_conflict])
+  @@index([created_at])
 }
