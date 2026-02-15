@@ -1,7 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, ConflictException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ObservationsService } from './observations.service';
 import { PrismaService } from '../../common/prisma';
+import { CryptoService } from '../../common/crypto';
 import { M21AbilityFactory, M21UserWithPermissions } from '../casl/m21-ability.factory';
 import { M21RecordingStatus } from '../dto/upload-recording.dto';
 import { M21ReviewProgressStatus } from '../dto/review-progress.dto';
@@ -135,6 +136,12 @@ describe('ObservationsService', () => {
     },
   };
 
+  const mockCryptoService = {
+    encrypt: jest.fn((value: string) => `encrypted_${value}`),
+    decrypt: jest.fn((value: string) => value.replace('encrypted_', '')),
+    hash: jest.fn((value: string) => `hashed_${value}`),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -143,6 +150,10 @@ describe('ObservationsService', () => {
         {
           provide: PrismaService,
           useValue: mockPrismaService,
+        },
+        {
+          provide: CryptoService,
+          useValue: mockCryptoService,
         },
       ],
     }).compile();
@@ -185,6 +196,32 @@ describe('ObservationsService', () => {
       expect(result.offset).toBe(5);
       expect(result.limit).toBe(2);
     });
+
+    it('should filter by is_active for non-admin users', async () => {
+      mockPrismaService.m21_storage_buckets.findMany.mockResolvedValue([mockBucket]);
+      mockPrismaService.m21_storage_buckets.count.mockResolvedValue(1);
+
+      await service.listBuckets({}, mockObservadorUser);
+
+      expect(mockPrismaService.m21_storage_buckets.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ is_active: true }),
+        }),
+      );
+    });
+
+    it('should allow admin to see inactive buckets', async () => {
+      mockPrismaService.m21_storage_buckets.findMany.mockResolvedValue([mockBucket]);
+      mockPrismaService.m21_storage_buckets.count.mockResolvedValue(1);
+
+      await service.listBuckets({ is_active: false }, mockAdminUser);
+
+      expect(mockPrismaService.m21_storage_buckets.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ is_active: false }),
+        }),
+      );
+    });
   });
 
   describe('getBucket', () => {
@@ -223,6 +260,32 @@ describe('ObservationsService', () => {
       expect(result.message).toBe('Storage bucket created successfully');
     });
 
+    it('should encrypt credentials before storing', async () => {
+      mockPrismaService.m21_storage_buckets.findUnique.mockResolvedValue(null);
+      mockPrismaService.m21_storage_buckets.create.mockResolvedValue(mockBucket);
+
+      const dto = {
+        name: 'test-bucket',
+        s3_bucket: 'test-s3-bucket',
+        s3_region: 'us-east-1',
+        access_key: 'my-access-key',
+        secret_key: 'my-secret-key',
+      };
+
+      await service.createBucket(dto, mockAdminUser);
+
+      expect(mockCryptoService.encrypt).toHaveBeenCalledWith('my-access-key');
+      expect(mockCryptoService.encrypt).toHaveBeenCalledWith('my-secret-key');
+      expect(mockPrismaService.m21_storage_buckets.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            access_key_encrypted: 'encrypted_my-access-key',
+            secret_key_encrypted: 'encrypted_my-secret-key',
+          }),
+        }),
+      );
+    });
+
     it('should throw ConflictException if bucket name exists', async () => {
       mockPrismaService.m21_storage_buckets.findUnique.mockResolvedValue(mockBucket);
 
@@ -235,6 +298,18 @@ describe('ObservationsService', () => {
       };
 
       await expect(service.createBucket(dto, mockAdminUser)).rejects.toThrow(ConflictException);
+    });
+
+    it('should throw ForbiddenException for non-admin users', async () => {
+      const dto = {
+        name: 'test-bucket',
+        s3_bucket: 'test-s3-bucket',
+        s3_region: 'us-east-1',
+        access_key: 'access-key',
+        secret_key: 'secret-key',
+      };
+
+      await expect(service.createBucket(dto, mockObservadorUser)).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -255,12 +330,68 @@ describe('ObservationsService', () => {
       expect(result.message).toBe('Storage bucket updated successfully');
     });
 
+    it('should encrypt credentials when updating', async () => {
+      mockPrismaService.m21_storage_buckets.findUnique.mockResolvedValue(mockBucket);
+      mockPrismaService.m21_storage_buckets.update.mockResolvedValue(mockBucket);
+
+      await service.updateBucket(
+        'bucket-123',
+        { access_key: 'new-access-key', secret_key: 'new-secret-key' },
+        mockAdminUser,
+      );
+
+      expect(mockCryptoService.encrypt).toHaveBeenCalledWith('new-access-key');
+      expect(mockCryptoService.encrypt).toHaveBeenCalledWith('new-secret-key');
+      expect(mockPrismaService.m21_storage_buckets.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            access_key_encrypted: 'encrypted_new-access-key',
+            secret_key_encrypted: 'encrypted_new-secret-key',
+          }),
+        }),
+      );
+    });
+
     it('should throw NotFoundException if bucket not found', async () => {
       mockPrismaService.m21_storage_buckets.findUnique.mockResolvedValue(null);
 
       await expect(
         service.updateBucket('nonexistent', { name: 'updated' }, mockAdminUser),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw ForbiddenException for non-admin users', async () => {
+      await expect(
+        service.updateBucket('bucket-123', { name: 'updated' }, mockObservadorUser),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('getBucketCredentials', () => {
+    it('should return decrypted credentials for active bucket', async () => {
+      mockPrismaService.m21_storage_buckets.findUnique.mockResolvedValue({
+        ...mockBucket,
+        access_key_encrypted: 'encrypted_test-access-key',
+        secret_key_encrypted: 'encrypted_test-secret-key',
+      });
+
+      const result = await service.getBucketCredentials('bucket-123');
+
+      expect(result).toEqual({
+        access_key: 'test-access-key',
+        secret_key: 'test-secret-key',
+        s3_bucket: 'test-s3-bucket',
+        s3_region: 'us-east-1',
+      });
+      expect(mockCryptoService.decrypt).toHaveBeenCalledTimes(2);
+    });
+
+    it('should return null for non-existent bucket', async () => {
+      mockPrismaService.m21_storage_buckets.findUnique.mockResolvedValue(null);
+
+      const result = await service.getBucketCredentials('nonexistent');
+
+      expect(result).toBeNull();
     });
   });
 
