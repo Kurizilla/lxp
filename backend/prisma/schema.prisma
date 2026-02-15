@@ -35,6 +35,13 @@ model m01_users {
   received_notifications   m01_notification_recipients[] @relation("ReceivedNotifications")
   notification_preferences m01_notification_preferences[]
 
+  // M09 Relations
+  created_calendar_events     m09_calendar_events[]              @relation("EventCreator")
+  hosted_class_sessions       m09_class_sessions[]               @relation("SessionHost")
+  class_session_participations m09_class_session_participants[]  @relation("SessionParticipant")
+  class_session_state_changes m09_class_session_state_logs[]     @relation("StateChangeUser")
+  created_whiteboard_elements m09_whiteboard_elements[]          @relation("WhiteboardElementCreator")
+
   @@index([email])
   @@index([google_id])
   @@index([is_active])
@@ -205,6 +212,10 @@ model m01_classrooms {
   subject     m01_subjects              @relation(fields: [subject_id], references: [id], onDelete: Cascade)
   enrollments m01_classroom_enrollments[]
 
+  // M09 Relations
+  calendar       m09_calendars?
+  class_sessions m09_class_sessions[]
+
   @@index([institution_id])
   @@index([subject_id])
   @@index([is_active])
@@ -314,4 +325,226 @@ model m01_notification_preferences {
   @@index([user_id])
   @@index([type])
   @@index([channel])
+}
+
+// ============================================================================
+// M09 - Calendars & Modo Clase (Class Mode Sessions)
+// ============================================================================
+
+/// Calendar event type enum
+enum M09CalendarEventType {
+  class_session
+  assignment_due
+  exam
+  meeting
+  holiday
+  custom
+}
+
+/// Calendar event recurrence pattern enum
+enum M09RecurrencePattern {
+  none
+  daily
+  weekly
+  biweekly
+  monthly
+}
+
+/// Class session state enum (modo clase states)
+enum M09ClassSessionState {
+  scheduled
+  waiting
+  active
+  paused
+  ended
+  cancelled
+}
+
+/// Whiteboard element type enum
+enum M09WhiteboardElementType {
+  stroke
+  text
+  shape
+  image
+  sticky_note
+}
+
+/// Calendar configuration for classrooms
+model m09_calendars {
+  id           String   @id @default(uuid())
+  classroom_id String   @unique
+  name         String
+  description  String?
+  timezone     String   @default("UTC")
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  // Relations
+  classroom m01_classrooms      @relation(fields: [classroom_id], references: [id], onDelete: Cascade)
+  events    m09_calendar_events[]
+
+  @@index([classroom_id])
+  @@index([is_active])
+  @@index([created_at])
+}
+
+/// Calendar events for scheduling
+model m09_calendar_events {
+  id                 String                @id @default(uuid())
+  calendar_id        String
+  title              String
+  description        String?
+  event_type         M09CalendarEventType  @default(custom)
+  start_time         DateTime
+  end_time           DateTime
+  all_day            Boolean               @default(false)
+  recurrence_pattern M09RecurrencePattern  @default(none)
+  recurrence_end     DateTime?
+  location           String?
+  color              String?
+  metadata           Json?
+  created_by         String?
+  created_at         DateTime              @default(now())
+  updated_at         DateTime              @updatedAt
+
+  // Relations
+  calendar       m09_calendars       @relation(fields: [calendar_id], references: [id], onDelete: Cascade)
+  creator        m01_users?          @relation("EventCreator", fields: [created_by], references: [id], onDelete: SetNull)
+  class_sessions m09_class_sessions[]
+
+  @@index([calendar_id])
+  @@index([start_time])
+  @@index([end_time])
+  @@index([event_type])
+  @@index([created_by])
+  @@index([created_at])
+}
+
+/// Class sessions for modo clase (live classroom sessions)
+model m09_class_sessions {
+  id               String               @id @default(uuid())
+  classroom_id     String
+  event_id         String?
+  title            String
+  description      String?
+  state            M09ClassSessionState @default(scheduled)
+  scheduled_start  DateTime
+  scheduled_end    DateTime?
+  actual_start     DateTime?
+  actual_end       DateTime?
+  host_id          String?
+  join_code        String?              @unique
+  max_participants Int?
+  settings         Json?
+  created_at       DateTime             @default(now())
+  updated_at       DateTime             @updatedAt
+
+  // Relations
+  classroom    m01_classrooms                 @relation(fields: [classroom_id], references: [id], onDelete: Cascade)
+  event        m09_calendar_events?           @relation(fields: [event_id], references: [id], onDelete: SetNull)
+  host         m01_users?                     @relation("SessionHost", fields: [host_id], references: [id], onDelete: SetNull)
+  participants m09_class_session_participants[]
+  whiteboards  m09_whiteboards[]
+  state_logs   m09_class_session_state_logs[]
+
+  @@index([classroom_id])
+  @@index([event_id])
+  @@index([state])
+  @@index([scheduled_start])
+  @@index([host_id])
+  @@index([join_code])
+  @@index([created_at])
+}
+
+/// Participants in class sessions
+model m09_class_session_participants {
+  id           String    @id @default(uuid())
+  session_id   String
+  user_id      String
+  role         String    @default("student")
+  joined_at    DateTime  @default(now())
+  left_at      DateTime?
+  is_present   Boolean   @default(true)
+  hand_raised  Boolean   @default(false)
+  metadata     Json?
+
+  // Relations
+  session m09_class_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user    m01_users          @relation("SessionParticipant", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([session_id, user_id])
+  @@index([session_id])
+  @@index([user_id])
+  @@index([is_present])
+  @@index([joined_at])
+}
+
+/// State transition logs for class sessions
+model m09_class_session_state_logs {
+  id             String               @id @default(uuid())
+  session_id     String
+  previous_state M09ClassSessionState?
+  new_state      M09ClassSessionState
+  changed_by     String?
+  reason         String?
+  created_at     DateTime             @default(now())
+
+  // Relations
+  session m09_class_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user    m01_users?         @relation("StateChangeUser", fields: [changed_by], references: [id], onDelete: SetNull)
+
+  @@index([session_id])
+  @@index([created_at])
+  @@index([new_state])
+}
+
+/// Whiteboards for class sessions
+model m09_whiteboards {
+  id          String   @id @default(uuid())
+  session_id  String
+  name        String   @default("Main Whiteboard")
+  is_active   Boolean  @default(true)
+  background  String?
+  width       Int      @default(1920)
+  height      Int      @default(1080)
+  settings    Json?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Relations
+  session  m09_class_sessions       @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  elements m09_whiteboard_elements[]
+
+  @@index([session_id])
+  @@index([is_active])
+  @@index([created_at])
+}
+
+/// Whiteboard elements/strokes
+model m09_whiteboard_elements {
+  id            String                    @id @default(uuid())
+  whiteboard_id String
+  element_type  M09WhiteboardElementType
+  content       Json
+  position_x    Float                     @default(0)
+  position_y    Float                     @default(0)
+  width         Float?
+  height        Float?
+  rotation      Float                     @default(0)
+  z_index       Int                       @default(0)
+  style         Json?
+  created_by    String?
+  created_at    DateTime                  @default(now())
+  updated_at    DateTime                  @updatedAt
+
+  // Relations
+  whiteboard m09_whiteboards @relation(fields: [whiteboard_id], references: [id], onDelete: Cascade)
+  creator    m01_users?      @relation("WhiteboardElementCreator", fields: [created_by], references: [id], onDelete: SetNull)
+
+  @@index([whiteboard_id])
+  @@index([element_type])
+  @@index([created_by])
+  @@index([created_at])
+  @@index([z_index])
 }

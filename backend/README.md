@@ -594,6 +594,193 @@ Ver `.env.example` para la lista completa de variables requeridas.
 | `REDIS_PORT` | Puerto de Redis |
 | `PORT` | Puerto del servidor (default: 3001) |
 
+## Setup Completo desde Cero (Nuevo Desarrollador/Agente)
+
+Si es tu primera vez o tienes problemas, sigue estos pasos en orden:
+
+```bash
+# 1. Clonar y entrar al directorio
+cd backend
+
+# 2. Crear archivo .env
+cp .env.example .env
+# Editar .env con tu DATABASE_URL (ej: postgresql://user@localhost:5432/phase3_db)
+
+# 3. Eliminar cualquier estado previo problemático
+rm -rf node_modules package-lock.json
+rm -f prisma/.env  # Si existe, causa conflictos
+
+# 4. Instalar dependencias
+npm install
+
+# 5. Generar cliente Prisma
+npx prisma generate
+
+# 6. Verificar que el cliente tiene los modelos
+node -e "const { PrismaClient } = require('@prisma/client'); const p = new PrismaClient(); console.log('Models:', Object.keys(p).filter(k => k.startsWith('m0')).length);"
+# Debe mostrar: Models: 21 (o más)
+
+# 7. Crear/resetear base de datos
+createdb phase3_db  # Si no existe
+npx prisma migrate dev --name init
+# Si hay drift, responder 'y' para resetear
+
+# 8. Verificar con tests
+npm run test:e2e
+# Debe pasar 48+ tests
+```
+
+### Comandos de Emergencia
+
+```bash
+# Si todo falla, nuclear option:
+rm -rf node_modules package-lock.json prisma/migrations
+npm install
+npx prisma generate
+npx prisma migrate dev --name full_schema
+npm run prisma:seed
+npm run test:e2e
+```
+
+---
+
+## Troubleshooting - Problemas Comunes
+
+### Error: "Property 'm01_roles' does not exist on type 'PrismaClient'"
+
+Este error ocurre cuando el cliente Prisma no está sincronizado con el schema. Solución:
+
+```bash
+# 1. Eliminar node_modules y regenerar todo
+rm -rf node_modules package-lock.json
+npm install
+npx prisma generate
+
+# 2. Verificar que el cliente tiene los modelos
+node -e "const { PrismaClient } = require('@prisma/client'); const p = new PrismaClient(); console.log('m01_roles:', typeof p.m01_roles);"
+# Debe imprimir: m01_roles: object
+```
+
+### Error: "The table does not exist in the current database"
+
+La base de datos no tiene las tablas. Necesitas correr las migraciones:
+
+```bash
+# Opción 1: Si tienes migraciones existentes
+npx prisma migrate dev
+
+# Opción 2: Si hay conflictos, resetear todo (BORRA DATOS)
+rm -rf prisma/migrations
+npx prisma migrate dev --name full_schema
+```
+
+### Error: "Drift detected" o "Migration missing from local directory"
+
+Hay diferencias entre la BD y las migraciones locales:
+
+```bash
+# Resetear la BD y crear nueva migración
+npx prisma migrate reset --force
+```
+
+### Error: "Environment variable not found: DATABASE_URL"
+
+Falta el archivo `.env`. Crear uno:
+
+```bash
+cp .env.example .env
+# Editar .env con tu DATABASE_URL
+```
+
+### Error: "Conflicting env vars" (prisma/.env vs .env)
+
+Hay dos archivos .env. Eliminar el de prisma:
+
+```bash
+rm prisma/.env
+```
+
+---
+
+## Para Agentes y Desarrolladores (DB Tasks)
+
+### Paso a Paso para Tasks de Base de Datos/Prisma
+
+Cuando trabajes en una task que modifica el schema de Prisma, sigue estos pasos:
+
+#### 1. Verificar el estado actual
+
+```bash
+# Ver líneas del schema (debe coincidir con lo esperado)
+wc -l prisma/schema.prisma
+
+# Verificar que el schema es válido
+npx prisma validate
+```
+
+#### 2. Hacer cambios al schema
+
+Editar `prisma/schema.prisma` siguiendo las convenciones:
+- **Nombres de tablas**: `m{XX}_{nombre}` (ej: `m09_calendars`)
+- **Campos**: snake_case (ej: `created_at`, `session_id`)
+- **Siempre incluir**: índices en `session_id`, `created_at`, y campos de búsqueda frecuente
+
+#### 3. Validar y generar cliente
+
+```bash
+npx prisma validate
+npx prisma generate
+npm run typecheck
+```
+
+#### 4. Crear migración (si aplica)
+
+```bash
+npx prisma migrate dev --name descriptive_name
+```
+
+#### 5. Health checks antes de commit
+
+```bash
+npx prisma validate       # Schema válido
+npx prisma generate       # Cliente generado
+npm run typecheck         # TypeScript compila
+```
+
+### Verificar Modelos M09 (Calendars & Modo Clase)
+
+```bash
+# Verificar que las tablas M09 existen en el cliente
+node -e "
+const { PrismaClient } = require('@prisma/client');
+const p = new PrismaClient();
+const m09 = Object.keys(p).filter(k => k.startsWith('m09_'));
+console.log('M09 models:', m09.join(', '));
+"
+# Debe mostrar: m09_calendars, m09_calendar_events, m09_class_sessions, etc.
+```
+
+### Schema de Módulos
+
+| Módulo | Prefijo | Descripción |
+|--------|---------|-------------|
+| M01 | `m01_` | Auth, Users, Roles, Organizations |
+| M09 | `m09_` | Calendars, Modo Clase, Whiteboards |
+
+### Tablas M09 (Calendars & Modo Clase)
+
+| Tabla | Descripción |
+|-------|-------------|
+| `m09_calendars` | Calendario por aula |
+| `m09_calendar_events` | Eventos con recurrencia |
+| `m09_class_sessions` | Sesiones "modo clase" en vivo |
+| `m09_class_session_participants` | Participantes en sesiones |
+| `m09_class_session_state_logs` | Log de cambios de estado |
+| `m09_whiteboards` | Pizarras por sesión |
+| `m09_whiteboard_elements` | Elementos de pizarra |
+
+---
+
 ## Contribuir
 
 1. Crear rama desde `main`
