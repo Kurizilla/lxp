@@ -99,21 +99,43 @@ export const admin_users_service = {
 /**
  * Admin roles service
  * Note: Backend does not have GET /admin/roles endpoint
- * Roles are obtained from user data or hardcoded for now
+ * We extract roles from the users list as a workaround
  */
 export const admin_roles_service = {
   /**
-   * List roles - returns hardcoded system roles since backend doesn't have this endpoint
-   * In a real implementation, this would call GET /admin/roles
+   * List roles - extracts unique roles from users list since backend doesn't have GET /admin/roles
    */
   list: async (): Promise<AdminRolesResponse> => {
-    // Hardcoded system roles matching the seed data
-    const system_roles: AdminRole[] = [
-      { id: 'admin', name: 'admin', description: 'Administrator with full access', is_system: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), permissions: [] },
-      { id: 'teacher', name: 'teacher', description: 'Teacher role', is_system: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), permissions: [] },
-      { id: 'student', name: 'student', description: 'Student role', is_system: true, created_at: new Date().toISOString(), updated_at: new Date().toISOString(), permissions: [] },
-    ];
-    return { roles: system_roles, total: system_roles.length, offset: 0, limit: 100 };
+    try {
+      // Get users to extract their roles (workaround since no GET /admin/roles endpoint)
+      const users_response = await api.get<AdminUsersResponse>('/admin/users');
+      
+      // Extract unique roles from users
+      const roles_map = new Map<string, AdminRole>();
+      for (const user of users_response.users) {
+        if (user.roles) {
+          for (const role of user.roles) {
+            if (!roles_map.has(role.id)) {
+              roles_map.set(role.id, {
+                id: role.id,
+                name: role.name,
+                description: role.description,
+                is_system: true,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                permissions: [],
+              });
+            }
+          }
+        }
+      }
+      
+      const roles = Array.from(roles_map.values());
+      return { roles, total: roles.length, offset: 0, limit: 100 };
+    } catch {
+      // Fallback to empty if users endpoint fails
+      return { roles: [], total: 0, offset: 0, limit: 100 };
+    }
   },
 
   /**
