@@ -74,3 +74,31 @@ export function AdminGuard({ children }: AdminGuardProps) {
 
   return <>{children}</>;
 }
+
+interface TeacherGuardProps {
+  children: React.ReactNode;
+}
+
+/**
+ * Teacher route guard
+ * Ensures user is authenticated and has teacher access
+ * In the future, this can check for teacher role via CASL RBAC
+ */
+export function TeacherGuard({ children }: TeacherGuardProps) {
+  const { is_authenticated, expires_at } = use_auth_store();
+  const location = useLocation();
+
+  // Check if token is valid
+  const is_token_valid = expires_at ? Date.now() < expires_at : false;
+  const has_valid_auth = is_authenticated && is_token_valid;
+
+  if (!has_valid_auth) {
+    // Redirect to login with return URL
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // For now, any authenticated user can access teacher pages
+  // In production, check user roles/permissions here for teacher role
+
+  return <>{children}</>;
+}

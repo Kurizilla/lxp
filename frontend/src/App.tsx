@@ -7,8 +7,17 @@ import {
   AdminSubjectsPage,
   AdminClassroomsPage,
 } from '@/features/admin';
-import { AuthGuard, GuestGuard, AdminGuard } from '@/routes';
-import { AdminLayout } from '@/components/layout';
+import {
+  SelectInstitutionPage,
+  SelectClassroomPage,
+} from '@/features/teacher';
+import {
+  NotificationsPage,
+  PreferencesPage,
+} from '@/features/notifications';
+import { AssistantPage } from '@/features/assistant';
+import { AuthGuard, GuestGuard, AdminGuard, TeacherGuard } from '@/routes';
+import { AdminLayout, TeacherLayout } from '@/components/layout';
 
 /**
  * Main application component with routing
@@ -93,6 +102,62 @@ export function App() {
               <AdminClassroomsPage />
             </AdminLayout>
           </AdminGuard>
+        }
+      />
+
+      {/* Teacher routes with layout */}
+      <Route
+        path="/teacher/select-institution"
+        element={
+          <TeacherGuard>
+            <TeacherLayout>
+              <SelectInstitutionPage />
+            </TeacherLayout>
+          </TeacherGuard>
+        }
+      />
+      <Route
+        path="/teacher/select-classroom"
+        element={
+          <TeacherGuard>
+            <TeacherLayout>
+              <SelectClassroomPage />
+            </TeacherLayout>
+          </TeacherGuard>
+        }
+      />
+
+      {/* Notification routes */}
+      <Route
+        path="/notifications"
+        element={
+          <AuthGuard>
+            <TeacherLayout>
+              <NotificationsPage />
+            </TeacherLayout>
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/notifications/preferences"
+        element={
+          <AuthGuard>
+            <TeacherLayout>
+              <PreferencesPage />
+            </TeacherLayout>
+          </AuthGuard>
+        }
+      />
+
+      {/* Assistant route */}
+      <Route
+        path="/assistant"
+        element={
+          <AuthGuard>
+            <TeacherLayout>
+              <AssistantPage />
+            </TeacherLayout>
+          </AuthGuard>
         }
       />
 
