@@ -1,0 +1,317 @@
+// This is your Prisma schema file
+// Learn more at: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// M01 - User Management & Authentication
+// ============================================================================
+
+/// User account model for authentication and identity
+model m01_users {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password_hash String?
+  google_id     String?  @unique
+  first_name    String?
+  last_name     String?
+  is_active     Boolean  @default(true)
+  created_at    DateTime @default(now())
+  updated_at    DateTime @updatedAt
+
+  // Relations
+  sessions                 m01_user_sessions[]
+  user_roles               m01_user_roles[]
+  user_institutions        m01_user_institutions[]
+  classroom_enrollments    m01_classroom_enrollments[]
+  sent_notifications       m01_notifications[]           @relation("SentNotifications")
+  received_notifications   m01_notification_recipients[] @relation("ReceivedNotifications")
+  notification_preferences m01_notification_preferences[]
+
+  @@index([email])
+  @@index([google_id])
+  @@index([is_active])
+}
+
+/// User session for token-based authentication
+model m01_user_sessions {
+  id         String    @id @default(uuid())
+  user_id    String
+  token      String    @unique
+  ip_address String?
+  user_agent String?
+  expires_at DateTime
+  created_at DateTime  @default(now())
+  revoked_at DateTime?
+
+  // Relations
+  user m01_users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([token])
+  @@index([expires_at])
+}
+
+// ============================================================================
+// M01 - Role-Based Access Control (RBAC)
+// ============================================================================
+
+/// Roles for RBAC
+model m01_roles {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  is_system   Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Relations
+  user_roles       m01_user_roles[]
+  role_permissions m01_role_permissions[]
+
+  @@index([name])
+}
+
+/// Junction table for user-role assignments
+model m01_user_roles {
+  id         String   @id @default(uuid())
+  user_id    String
+  role_id    String
+  granted_by String?
+  granted_at DateTime @default(now())
+
+  // Relations
+  user m01_users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  role m01_roles @relation(fields: [role_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, role_id])
+  @@index([user_id])
+  @@index([role_id])
+}
+
+/// Permissions for fine-grained access control
+model m01_permissions {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  resource    String
+  action      String
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Relations
+  role_permissions m01_role_permissions[]
+
+  @@unique([resource, action])
+  @@index([name])
+  @@index([resource])
+}
+
+/// Junction table for role-permission assignments
+model m01_role_permissions {
+  id            String   @id @default(uuid())
+  role_id       String
+  permission_id String
+  created_at    DateTime @default(now())
+
+  // Relations
+  role       m01_roles       @relation(fields: [role_id], references: [id], onDelete: Cascade)
+  permission m01_permissions @relation(fields: [permission_id], references: [id], onDelete: Cascade)
+
+  @@unique([role_id, permission_id])
+  @@index([role_id])
+  @@index([permission_id])
+}
+
+// ============================================================================
+// M01 - Organizational Hierarchy
+// ============================================================================
+
+/// Educational institutions
+model m01_institutions {
+  id         String   @id @default(uuid())
+  name       String
+  code       String   @unique
+  address    String?
+  is_active  Boolean  @default(true)
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  user_institutions m01_user_institutions[]
+  classrooms        m01_classrooms[]
+
+  @@index([code])
+  @@index([is_active])
+}
+
+/// Junction table for user-institution assignments
+model m01_user_institutions {
+  id             String   @id @default(uuid())
+  user_id        String
+  institution_id String
+  role_context   String?
+  joined_at      DateTime @default(now())
+
+  // Relations
+  user        m01_users        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  institution m01_institutions @relation(fields: [institution_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, institution_id])
+  @@index([user_id])
+  @@index([institution_id])
+}
+
+/// Academic subjects
+model m01_subjects {
+  id          String   @id @default(uuid())
+  code        String   @unique
+  name        String
+  description String?
+  grade       String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Relations
+  classrooms m01_classrooms[]
+
+  @@index([code])
+  @@index([grade])
+  @@index([is_active])
+}
+
+/// Classrooms within institutions for specific subjects
+model m01_classrooms {
+  id             String   @id @default(uuid())
+  institution_id String
+  subject_id     String
+  name           String
+  section        String?
+  academic_year  String?
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  // Relations
+  institution m01_institutions          @relation(fields: [institution_id], references: [id], onDelete: Cascade)
+  subject     m01_subjects              @relation(fields: [subject_id], references: [id], onDelete: Cascade)
+  enrollments m01_classroom_enrollments[]
+
+  @@index([institution_id])
+  @@index([subject_id])
+  @@index([is_active])
+}
+
+/// Junction table for user-classroom enrollments
+model m01_classroom_enrollments {
+  id           String    @id @default(uuid())
+  user_id      String
+  classroom_id String
+  role         String    @default("student")
+  enrolled_at  DateTime  @default(now())
+  dropped_at   DateTime?
+
+  // Relations
+  user      m01_users      @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  classroom m01_classrooms @relation(fields: [classroom_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, classroom_id])
+  @@index([user_id])
+  @@index([classroom_id])
+  @@index([role])
+}
+
+// ============================================================================
+// M01 - Notifications
+// ============================================================================
+
+/// Notification type enum
+enum NotificationType {
+  system
+  announcement
+  reminder
+  alert
+  message
+}
+
+/// Notification priority enum
+enum NotificationPriority {
+  low
+  normal
+  high
+  urgent
+}
+
+/// Notification channel enum
+enum NotificationChannel {
+  in_app
+  email
+  push
+  sms
+}
+
+/// Notifications sent to users
+model m01_notifications {
+  id         String               @id @default(uuid())
+  sender_id  String?
+  type       NotificationType     @default(system)
+  priority   NotificationPriority @default(normal)
+  title      String
+  message    String
+  data       Json?
+  created_at DateTime             @default(now())
+
+  // Relations
+  sender     m01_users?                    @relation("SentNotifications", fields: [sender_id], references: [id], onDelete: SetNull)
+  recipients m01_notification_recipients[]
+
+  @@index([sender_id])
+  @@index([type])
+  @@index([priority])
+  @@index([created_at])
+}
+
+/// Junction table for notification recipients (many-to-many)
+model m01_notification_recipients {
+  id              String    @id @default(uuid())
+  notification_id String
+  user_id         String
+  read_at         DateTime?
+  dismissed_at    DateTime?
+
+  // Relations
+  notification m01_notifications @relation(fields: [notification_id], references: [id], onDelete: Cascade)
+  user         m01_users         @relation("ReceivedNotifications", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([notification_id, user_id])
+  @@index([notification_id])
+  @@index([user_id])
+  @@index([read_at])
+}
+
+/// User notification preferences
+model m01_notification_preferences {
+  id         String              @id @default(uuid())
+  user_id    String
+  type       NotificationType
+  channel    NotificationChannel
+  enabled    Boolean             @default(true)
+  created_at DateTime            @default(now())
+  updated_at DateTime            @updatedAt
+
+  // Relations
+  user m01_users @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, type, channel])
+  @@index([user_id])
+  @@index([type])
+  @@index([channel])
+}
