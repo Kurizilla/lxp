@@ -35,14 +35,16 @@ import type {
 } from '@/types';
 
 /**
- * Build query string from params
+ * Build query string from pagination params only
+ * Backend only accepts offset and limit (with forbidNonWhitelisted validation)
  */
-function build_query_string<T extends object>(params: T): string {
+function build_pagination_query(offset?: number, limit?: number): string {
   const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== null && value !== '') {
-      query.append(key, String(value));
-    }
+  if (typeof offset === 'number' && offset >= 0) {
+    query.append('offset', String(offset));
+  }
+  if (typeof limit === 'number' && limit > 0) {
+    query.append('limit', String(limit));
   }
   const str = query.toString();
   return str ? `?${str}` : '';
@@ -59,7 +61,7 @@ export const admin_users_service = {
    * Note: Backend only supports offset and limit, no search/filter
    */
   list: (params?: PaginationParams): Promise<AdminUsersResponse> =>
-    api.get<AdminUsersResponse>(`/admin/users${build_query_string({ offset: params?.offset, limit: params?.limit })}`),
+    api.get<AdminUsersResponse>(`/admin/users${build_pagination_query(params?.offset, params?.limit)}`),
 
   /**
    * GET /admin/users/:id
@@ -151,7 +153,7 @@ export const admin_institutions_service = {
    * Note: Backend only supports offset and limit
    */
   list: (params?: PaginationParams): Promise<InstitutionsResponse> =>
-    api.get<InstitutionsResponse>(`/admin/institutions${build_query_string({ offset: params?.offset, limit: params?.limit })}`),
+    api.get<InstitutionsResponse>(`/admin/institutions${build_pagination_query(params?.offset, params?.limit)}`),
 
   /**
    * GET /admin/institutions/:id
@@ -193,7 +195,7 @@ export const admin_subjects_service = {
    * Note: Backend only supports offset and limit
    */
   list: (params?: PaginationParams): Promise<SubjectsResponse> =>
-    api.get<SubjectsResponse>(`/admin/subjects${build_query_string({ offset: params?.offset, limit: params?.limit })}`),
+    api.get<SubjectsResponse>(`/admin/subjects${build_pagination_query(params?.offset, params?.limit)}`),
 
   /**
    * GET /admin/subjects/:id
@@ -235,7 +237,7 @@ export const admin_classrooms_service = {
    * Note: Backend only supports offset and limit
    */
   list: (params?: PaginationParams): Promise<ClassroomsResponse> =>
-    api.get<ClassroomsResponse>(`/admin/classrooms${build_query_string({ offset: params?.offset, limit: params?.limit })}`),
+    api.get<ClassroomsResponse>(`/admin/classrooms${build_pagination_query(params?.offset, params?.limit)}`),
 
   /**
    * GET /admin/classrooms/:id
