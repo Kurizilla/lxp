@@ -1,6 +1,14 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { LoginPage, RecoverPasswordPage, SessionsPage } from '@/features/auth';
-import { AuthGuard, GuestGuard } from '@/routes';
+import {
+  AdminUsersPage,
+  AdminRolesPage,
+  AdminInstitutionsPage,
+  AdminSubjectsPage,
+  AdminClassroomsPage,
+} from '@/features/admin';
+import { AuthGuard, GuestGuard, AdminGuard } from '@/routes';
+import { AdminLayout } from '@/components/layout';
 
 /**
  * Main application component with routing
@@ -33,6 +41,58 @@ export function App() {
           <AuthGuard>
             <SessionsPage />
           </AuthGuard>
+        }
+      />
+
+      {/* Admin routes with layout */}
+      <Route
+        path="/admin/users"
+        element={
+          <AdminGuard>
+            <AdminLayout>
+              <AdminUsersPage />
+            </AdminLayout>
+          </AdminGuard>
+        }
+      />
+      <Route
+        path="/admin/roles"
+        element={
+          <AdminGuard>
+            <AdminLayout>
+              <AdminRolesPage />
+            </AdminLayout>
+          </AdminGuard>
+        }
+      />
+      <Route
+        path="/admin/institutions"
+        element={
+          <AdminGuard>
+            <AdminLayout>
+              <AdminInstitutionsPage />
+            </AdminLayout>
+          </AdminGuard>
+        }
+      />
+      <Route
+        path="/admin/subjects"
+        element={
+          <AdminGuard>
+            <AdminLayout>
+              <AdminSubjectsPage />
+            </AdminLayout>
+          </AdminGuard>
+        }
+      />
+      <Route
+        path="/admin/classrooms"
+        element={
+          <AdminGuard>
+            <AdminLayout>
+              <AdminClassroomsPage />
+            </AdminLayout>
+          </AdminGuard>
         }
       />
 

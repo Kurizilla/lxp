@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button, Card, CardHeader, Alert } from '@/components/ui';
 import { auth_service, ApiException } from '@/services';
 import { use_auth_store } from '@/store';
@@ -147,9 +147,16 @@ export function SessionsPage() {
               </p>
             )}
           </div>
-          <Button variant="secondary" onClick={handle_logout}>
-            Sign out
-          </Button>
+          <div className="flex items-center gap-3">
+            <Link to="/admin/users">
+              <Button variant="primary">
+                Admin Panel
+              </Button>
+            </Link>
+            <Button variant="secondary" onClick={handle_logout}>
+              Sign out
+            </Button>
+          </div>
         </div>
 
         {/* Error alert */}
