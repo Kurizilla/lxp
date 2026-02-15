@@ -21,7 +21,6 @@ import {
   M09ConflictsQueryDto,
   M09SyncOperationType,
   M09SyncStatus,
-  M09ConflictResolutionStatus,
   M09PushSyncResponseDto,
   M09PullSyncResponseDto,
   M09SyncedOperationDto,
