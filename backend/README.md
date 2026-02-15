@@ -332,6 +332,134 @@ El asistente devuelve respuestas contextuales basadas en:
 }
 ```
 
+### Calendar (`/m09/calendar`)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/m09/calendar/assign` | Asignar calendario a un aula |
+| GET | `/m09/calendar/:id` | Obtener calendario por ID |
+| GET | `/m09/calendar/by-classroom?classroom_id=<uuid>` | Obtener calendario por aula |
+| PATCH | `/m09/calendar/:id` | Actualizar calendario |
+| POST | `/m09/calendar/events` | Crear evento de calendario |
+| GET | `/m09/calendar/events?calendar_id=<uuid>` | Listar eventos (con filtros) |
+| GET | `/m09/calendar/events/:id` | Obtener evento por ID |
+| PATCH | `/m09/calendar/events/:id` | Actualizar evento |
+| DELETE | `/m09/calendar/events/:id` | Eliminar evento |
+
+#### Request Body para `POST /m09/calendar/assign`
+```json
+{
+  "classroom_id": "<uuid>",
+  "name": "Math 101 Calendar",
+  "description": "Calendar for Math class",
+  "timezone": "America/Mexico_City"
+}
+```
+
+#### Request Body para `POST /m09/calendar/events`
+```json
+{
+  "calendar_id": "<uuid>",
+  "title": "Class Session",
+  "description": "Regular class",
+  "event_type": "class_session",
+  "start_time": "2026-02-15T10:00:00.000Z",
+  "end_time": "2026-02-15T11:00:00.000Z",
+  "all_day": false,
+  "recurrence_pattern": "weekly",
+  "location": "Room 101",
+  "color": "#3498db"
+}
+```
+
+#### Tipos de evento
+- `class_session` - Sesión de clase
+- `assignment_due` - Entrega de tarea
+- `exam` - Examen
+- `meeting` - Reunión
+- `holiday` - Feriado
+- `custom` - Personalizado
+
+#### Patrones de recurrencia
+- `none` - Sin recurrencia
+- `daily` - Diario
+- `weekly` - Semanal
+- `biweekly` - Quincenal
+- `monthly` - Mensual
+
+### Modo Clase / Sesiones (`/m09/modo-clase`)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/m09/modo-clase/sessions` | Crear sesión de clase |
+| GET | `/m09/modo-clase/sessions` | Listar sesiones (con filtros) |
+| GET | `/m09/modo-clase/sessions/:id` | Obtener sesión por ID |
+| GET | `/m09/modo-clase/sessions/:id/details` | Obtener sesión con participantes |
+| GET | `/m09/modo-clase/sessions/:id/state-history` | Historial de cambios de estado |
+| PATCH | `/m09/modo-clase/sessions/:id` | Actualizar sesión |
+| POST | `/m09/modo-clase/sessions/start` | Iniciar sesión (genera código de acceso) |
+| POST | `/m09/modo-clase/sessions/change-state` | Cambiar estado (pause, end, etc.) |
+| POST | `/m09/modo-clase/join` | Unirse a sesión con código |
+
+#### Request Body para `POST /m09/modo-clase/sessions`
+```json
+{
+  "classroom_id": "<uuid>",
+  "event_id": "<uuid>",
+  "title": "Live Class Session",
+  "description": "Interactive class",
+  "scheduled_start": "2026-02-15T10:00:00.000Z",
+  "scheduled_end": "2026-02-15T11:00:00.000Z",
+  "max_participants": 30
+}
+```
+
+#### Request Body para `POST /m09/modo-clase/sessions/start`
+```json
+{
+  "session_id": "<uuid>"
+}
+```
+
+#### Response
+```json
+{
+  "session": { ... },
+  "join_code": "ABC123",
+  "message": "Session started successfully"
+}
+```
+
+#### Request Body para `POST /m09/modo-clase/sessions/change-state`
+```json
+{
+  "session_id": "<uuid>",
+  "new_state": "paused",
+  "reason": "Break time"
+}
+```
+
+#### Estados de sesión
+- `scheduled` - Programada (estado inicial)
+- `waiting` - En espera
+- `active` - Activa (en curso)
+- `paused` - Pausada
+- `ended` - Finalizada
+- `cancelled` - Cancelada
+
+#### Transiciones de estado válidas
+- `scheduled` → `waiting`, `cancelled`
+- `waiting` → `active`, `cancelled`
+- `active` → `paused`, `ended`
+- `paused` → `active`, `ended`
+
+#### Request Body para `POST /m09/modo-clase/join`
+```json
+{
+  "join_code": "ABC123"
+}
+```
+
 ### Admin - Configuración (`/admin`)
 
 | Método | Endpoint | Descripción |
@@ -515,6 +643,106 @@ curl -X PATCH http://localhost:3001/notifications/preferences \
       {"type": "system", "channel": "email", "enabled": false}
     ]
   }' | jq
+```
+
+## Probar Calendar y Modo Clase Endpoints
+
+### Opción 1: Script automático (recomendado)
+
+```bash
+# Asegúrate de que el servidor esté corriendo
+npm start &
+
+# Ejecutar tests de calendar y modo clase
+npm run test:calendar-modo-clase
+
+# O especificar puerto
+npm run test:calendar-modo-clase 3002
+```
+
+El script prueba:
+- ✅ Login como teacher
+- ✅ POST /m09/calendar/assign
+- ✅ GET /m09/calendar/by-classroom
+- ✅ PATCH /m09/calendar/:id
+- ✅ POST /m09/calendar/events
+- ✅ GET /m09/calendar/events
+- ✅ PATCH /m09/calendar/events/:id
+- ✅ DELETE /m09/calendar/events/:id
+- ✅ POST /m09/modo-clase/sessions
+- ✅ GET /m09/modo-clase/sessions
+- ✅ POST /m09/modo-clase/sessions/start (genera join_code)
+- ✅ POST /m09/modo-clase/join
+- ✅ POST /m09/modo-clase/sessions/change-state (pause, resume, end)
+- ✅ GET /m09/modo-clase/sessions/:id/state-history
+- ✅ Validación 401 sin token
+- ✅ Validación 404 para sesión inexistente
+- ✅ Validación código de acceso inválido
+
+### Opción 2: Manual con curl
+
+```bash
+# 1. Login como teacher
+TOKEN=$(curl -s -X POST http://localhost:3001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "teacher@test.com", "password": "Teacher123!"}' | jq -r '.access_token')
+
+# 2. Obtener classrooms del teacher
+CLASSROOM_ID=$(curl -s http://localhost:3001/teacher/classrooms \
+  -H "Authorization: Bearer $TOKEN" | jq -r '.classrooms[0].id')
+
+# 3. Asignar calendario al aula
+curl -X POST http://localhost:3001/m09/calendar/assign \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"classroom_id\": \"$CLASSROOM_ID\",
+    \"name\": \"My Calendar\",
+    \"timezone\": \"America/Mexico_City\"
+  }" | jq
+
+# 4. Crear sesión de clase
+curl -X POST http://localhost:3001/m09/modo-clase/sessions \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"classroom_id\": \"$CLASSROOM_ID\",
+    \"title\": \"Live Math Session\",
+    \"scheduled_start\": \"$(date -u -d '+1 hour' +%Y-%m-%dT%H:%M:%S.000Z)\",
+    \"max_participants\": 30
+  }" | jq
+
+# 5. Iniciar sesión (obtener código de acceso)
+SESSION_ID="<session-id-from-step-4>"
+curl -X POST http://localhost:3001/m09/modo-clase/sessions/start \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"session_id\": \"$SESSION_ID\"}" | jq
+
+# 6. Unirse con código (como estudiante)
+curl -X POST http://localhost:3001/m09/modo-clase/join \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"join_code": "ABC123"}' | jq
+
+# 7. Pausar sesión
+curl -X POST http://localhost:3001/m09/modo-clase/sessions/change-state \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"session_id\": \"$SESSION_ID\",
+    \"new_state\": \"paused\",
+    \"reason\": \"Break\"
+  }" | jq
+
+# 8. Finalizar sesión
+curl -X POST http://localhost:3001/m09/modo-clase/sessions/change-state \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"session_id\": \"$SESSION_ID\",
+    \"new_state\": \"ended\"
+  }" | jq
 ```
 
 ## Probar Offline Sync Endpoints

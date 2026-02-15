@@ -22,7 +22,8 @@
     "db:setup": "npm run prisma:migrate && npm run prisma:seed",
     "test:teacher": "bash scripts/test-teacher-endpoints.sh",
     "test:notifications": "bash scripts/test-notifications-endpoints.sh",
-    "test:offline": "bash scripts/test-offline-sync-endpoints.sh"
+    "test:offline": "bash scripts/test-offline-sync-endpoints.sh",
+    "test:calendar-modo-clase": "bash scripts/test-calendar-modo-clase-endpoints.sh"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
