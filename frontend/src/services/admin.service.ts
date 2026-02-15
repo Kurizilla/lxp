@@ -35,19 +35,16 @@ import type {
 } from '@/types';
 
 /**
- * Build query string from pagination params only
- * Backend only accepts offset and limit (with forbidNonWhitelisted validation)
+ * Build query string from pagination params
+ * NOTE: Backend PaginationQuery DTO doesn't have class-validator decorators,
+ * so we can't send offset/limit as query params (forbidNonWhitelisted rejects them).
+ * For now, we don't send any query params and let the backend use defaults.
  */
-function build_pagination_query(offset?: number, limit?: number): string {
-  const query = new URLSearchParams();
-  if (typeof offset === 'number' && offset >= 0) {
-    query.append('offset', String(offset));
-  }
-  if (typeof limit === 'number' && limit > 0) {
-    query.append('limit', String(limit));
-  }
-  const str = query.toString();
-  return str ? `?${str}` : '';
+function build_pagination_query(_offset?: number, _limit?: number): string {
+  // Backend rejects offset/limit params due to missing decorators in PaginationQuery
+  // See error: "property offset should not exist, property limit should not exist"
+  // Until backend is fixed, don't send any pagination params
+  return '';
 }
 
 /**
