@@ -262,6 +262,76 @@ El asistente devuelve respuestas contextuales basadas en:
 - **route**: Si incluye `classroom`, `admin`, `subject`, `notification`, etc.
 - **module**: Si es `m01` (auth), `content`, `assessment`, `analytics`, etc.
 
+### Offline Sync (`/m09/offline`)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/m09/offline/push` | Push operaciones offline (client → server) |
+| POST | `/m09/offline/pull` | Pull cambios del servidor (server → client) |
+| GET | `/m09/offline/status` | Estado del sync (pending, synced, failed, conflicts) |
+| GET | `/m09/offline/conflicts` | Listar conflictos de versión |
+| PATCH | `/m09/offline/conflicts/resolve` | Resolver un conflicto |
+| PATCH | `/m09/offline/conflicts/resolve-bulk` | Resolver múltiples conflictos |
+| DELETE | `/m09/offline/history` | Limpiar historial de operaciones sincronizadas |
+
+#### Request Body para `POST /m09/offline/push`
+```json
+{
+  "operations": [
+    {
+      "entity_type": "whiteboard_element",
+      "entity_id": "<uuid>",
+      "operation_type": "create|update|delete",
+      "payload": { ... },
+      "client_version": 1,
+      "client_timestamp": "2026-02-15T19:00:00.000Z"
+    }
+  ],
+  "last_sync_timestamp": 1739646000000
+}
+```
+
+#### Response para `POST /m09/offline/push`
+```json
+{
+  "synced": [
+    {
+      "id": "<queue-item-id>",
+      "entity_type": "whiteboard_element",
+      "entity_id": "<uuid>",
+      "operation_type": "create",
+      "status": "synced",
+      "server_version": 1,
+      "synced_at": "2026-02-15T19:05:00.000Z"
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "<conflict-id>",
+      "entity_type": "whiteboard_element",
+      "entity_id": "<uuid>",
+      "client_version": 1,
+      "server_version": 2,
+      "client_data": { ... },
+      "server_data": { ... },
+      "has_version_conflict": true
+    }
+  ],
+  "failed": [],
+  "sync_timestamp": 1739646300000,
+  "message": "Processed 2 operations"
+}
+```
+
+#### Request Body para `PATCH /m09/offline/conflicts/resolve`
+```json
+{
+  "conflict_id": "<uuid>",
+  "resolution": "client_wins|server_wins|merged|discarded",
+  "merged_data": { ... }
+}
+```
+
 ### Admin - Configuración (`/admin`)
 
 | Método | Endpoint | Descripción |
@@ -447,7 +517,73 @@ curl -X PATCH http://localhost:3001/notifications/preferences \
   }' | jq
 ```
 
+## Probar Offline Sync Endpoints
+
+### Opción 1: Script automático (recomendado)
+
+```bash
+# Asegúrate de que el servidor esté corriendo
+npm start &
+
+# Ejecutar tests de offline sync
+npm run test:offline
+
+# O especificar puerto
+npm run test:offline 3002
+```
+
+El script prueba:
+- ✅ Login como admin
+- ✅ GET /m09/offline/status (estado inicial)
+- ✅ GET /m09/offline/conflicts (vacío)
+- ✅ POST /m09/offline/push (operación create)
+- ✅ POST /m09/offline/push (múltiples operaciones)
+- ✅ POST /m09/offline/pull (obtener cambios)
+- ✅ GET /m09/offline/status (después de operaciones)
+- ✅ Validación 401 sin token
+- ✅ GET /m09/offline/conflicts con filtros
+- ✅ DELETE /m09/offline/history
+
 ### Opción 2: Manual con curl
+
+```bash
+# 1. Login para obtener token
+TOKEN=$(curl -s -X POST http://localhost:3001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@test.com", "password": "Admin123!"}' | jq -r '.access_token')
+
+# 2. Ver estado del sync
+curl http://localhost:3001/m09/offline/status \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# 3. Push operación offline
+curl -X POST http://localhost:3001/m09/offline/push \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operations": [{
+      "entity_type": "whiteboard_element",
+      "operation_type": "create",
+      "payload": {"content": "test", "position_x": 100},
+      "client_version": 1,
+      "client_timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%S.000Z)'"
+    }]
+  }' | jq
+
+# 4. Pull cambios del servidor
+curl -X POST http://localhost:3001/m09/offline/pull \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"limit": 10}' | jq
+
+# 5. Ver conflictos
+curl http://localhost:3001/m09/offline/conflicts \
+  -H "Authorization: Bearer $TOKEN" | jq
+```
+
+---
+
+### Opción 2: Manual con curl (Teacher)
 
 ```bash
 # 1. Login como teacher
@@ -778,6 +914,8 @@ console.log('M09 models:', m09.join(', '));
 | `m09_class_session_state_logs` | Log de cambios de estado |
 | `m09_whiteboards` | Pizarras por sesión |
 | `m09_whiteboard_elements` | Elementos de pizarra |
+| `m09_offline_queue` | Cola de operaciones offline |
+| `m09_sync_conflicts` | Conflictos de versión en sync |
 
 ---
 
