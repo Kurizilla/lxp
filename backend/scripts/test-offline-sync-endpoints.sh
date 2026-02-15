@@ -134,7 +134,7 @@ fi
 
 echo ""
 
-# Test 5: Push sync with multiple operations
+# Test 5: Push sync with multiple operations (both create, no entity_id needed)
 echo "5. POST /m09/offline/push (multiple operations)..."
 TIMESTAMP2=$(date -u +"%Y-%m-%dT%H:%M:%S.000Z")
 RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/m09/offline/push" \
@@ -154,12 +154,14 @@ RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/m09/offline/push" \
       },
       {
         \"entity_type\": \"whiteboard_element\",
-        \"entity_id\": \"00000000-0000-0000-0000-000000000001\",
-        \"operation_type\": \"update\",
+        \"operation_type\": \"create\",
         \"payload\": {
-          \"content\": \"Updated content\"
+          \"element_type\": \"shape\",
+          \"content\": \"Rectangle shape\",
+          \"position_x\": 300,
+          \"position_y\": 400
         },
-        \"client_version\": 2,
+        \"client_version\": 1,
         \"client_timestamp\": \"$TIMESTAMP2\"
       }
     ]
