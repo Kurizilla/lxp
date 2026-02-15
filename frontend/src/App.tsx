@@ -8,6 +8,7 @@ import {
   AdminClassroomsPage,
 } from '@/features/admin';
 import { AuthGuard, GuestGuard, AdminGuard } from '@/routes';
+import { AdminLayout } from '@/components/layout';
 
 /**
  * Main application component with routing
@@ -43,12 +44,14 @@ export function App() {
         }
       />
 
-      {/* Admin routes */}
+      {/* Admin routes with layout */}
       <Route
         path="/admin/users"
         element={
           <AdminGuard>
-            <AdminUsersPage />
+            <AdminLayout>
+              <AdminUsersPage />
+            </AdminLayout>
           </AdminGuard>
         }
       />
@@ -56,7 +59,9 @@ export function App() {
         path="/admin/roles"
         element={
           <AdminGuard>
-            <AdminRolesPage />
+            <AdminLayout>
+              <AdminRolesPage />
+            </AdminLayout>
           </AdminGuard>
         }
       />
@@ -64,7 +69,9 @@ export function App() {
         path="/admin/institutions"
         element={
           <AdminGuard>
-            <AdminInstitutionsPage />
+            <AdminLayout>
+              <AdminInstitutionsPage />
+            </AdminLayout>
           </AdminGuard>
         }
       />
@@ -72,7 +79,9 @@ export function App() {
         path="/admin/subjects"
         element={
           <AdminGuard>
-            <AdminSubjectsPage />
+            <AdminLayout>
+              <AdminSubjectsPage />
+            </AdminLayout>
           </AdminGuard>
         }
       />
@@ -80,7 +89,9 @@ export function App() {
         path="/admin/classrooms"
         element={
           <AdminGuard>
-            <AdminClassroomsPage />
+            <AdminLayout>
+              <AdminClassroomsPage />
+            </AdminLayout>
           </AdminGuard>
         }
       />

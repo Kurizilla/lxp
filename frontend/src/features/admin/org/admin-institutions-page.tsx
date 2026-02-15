@@ -107,24 +107,25 @@ export function AdminInstitutionsPage() {
     set_error(null);
 
     try {
-      const params: Record<string, unknown> = {
+      const response = await admin_institutions_service.list({
         offset,
         limit: ITEMS_PER_PAGE,
-      };
-
+      });
+      // Apply client-side filtering since backend doesn't support it
+      let filtered = response.institutions;
       if (search) {
-        params.search = search;
+        const search_lower = search.toLowerCase();
+        filtered = filtered.filter(i => 
+          i.name.toLowerCase().includes(search_lower) || 
+          i.code.toLowerCase().includes(search_lower)
+        );
       }
-
       if (status_filter !== '') {
-        params.is_active = status_filter === 'active';
+        const is_active = status_filter === 'active';
+        filtered = filtered.filter(i => i.is_active === is_active);
       }
-
-      const response = await admin_institutions_service.list(
-        params as Parameters<typeof admin_institutions_service.list>[0]
-      );
-      set_institutions(response.institutions);
-      set_total(response.total);
+      set_institutions(filtered);
+      set_total(filtered.length);
     } catch (err) {
       if (err instanceof ApiException) {
         set_error(err.message);

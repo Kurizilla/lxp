@@ -122,22 +122,26 @@ export function AdminUsersPage() {
     set_error(null);
 
     try {
-      const params: Record<string, unknown> = {
+      const response = await admin_users_service.list({
         offset,
         limit: ITEMS_PER_PAGE,
-      };
-
+      });
+      // Apply client-side filtering since backend doesn't support it
+      let filtered = response.users;
       if (search) {
-        params.search = search;
+        const search_lower = search.toLowerCase();
+        filtered = filtered.filter(u => 
+          u.email.toLowerCase().includes(search_lower) ||
+          (u.first_name && u.first_name.toLowerCase().includes(search_lower)) ||
+          (u.last_name && u.last_name.toLowerCase().includes(search_lower))
+        );
       }
-
       if (status_filter !== '') {
-        params.is_active = status_filter === 'active';
+        const is_active = status_filter === 'active';
+        filtered = filtered.filter(u => u.is_active === is_active);
       }
-
-      const response = await admin_users_service.list(params as Parameters<typeof admin_users_service.list>[0]);
-      set_users(response.users);
-      set_total(response.total);
+      set_users(filtered);
+      set_total(filtered.length);
     } catch (err) {
       if (err instanceof ApiException) {
         set_error(err.message);

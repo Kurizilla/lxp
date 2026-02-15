@@ -109,24 +109,25 @@ export function AdminSubjectsPage() {
     set_error(null);
 
     try {
-      const params: Record<string, unknown> = {
+      const response = await admin_subjects_service.list({
         offset,
         limit: ITEMS_PER_PAGE,
-      };
-
+      });
+      // Apply client-side filtering since backend doesn't support it
+      let filtered = response.subjects;
       if (search) {
-        params.search = search;
+        const search_lower = search.toLowerCase();
+        filtered = filtered.filter(s => 
+          s.name.toLowerCase().includes(search_lower) || 
+          s.code.toLowerCase().includes(search_lower)
+        );
       }
-
       if (status_filter !== '') {
-        params.is_active = status_filter === 'active';
+        const is_active = status_filter === 'active';
+        filtered = filtered.filter(s => s.is_active === is_active);
       }
-
-      const response = await admin_subjects_service.list(
-        params as Parameters<typeof admin_subjects_service.list>[0]
-      );
-      set_subjects(response.subjects);
-      set_total(response.total);
+      set_subjects(filtered);
+      set_total(filtered.length);
     } catch (err) {
       if (err instanceof ApiException) {
         set_error(err.message);
