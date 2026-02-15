@@ -2,7 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button, Input, Card, CardHeader, Alert } from '@/components/ui';
 import { auth_service, ApiException } from '@/services';
-import { use_auth_store } from '@/store';
+import { use_auth_store, detect_user_role } from '@/store';
 import type { LoginRequest } from '@/types';
 
 interface FormErrors {
@@ -37,7 +37,7 @@ function validate_form(values: LoginRequest): FormErrors {
  */
 export function LoginPage() {
   const navigate = useNavigate();
-  const { set_auth, set_loading, set_error, is_loading, error, clear_error } =
+  const { set_auth, set_user_role, set_loading, set_error, is_loading, error, clear_error } =
     use_auth_store();
 
   const [form_values, set_form_values] = useState<LoginRequest>({
@@ -89,7 +89,19 @@ export function LoginPage() {
           token_type: response.token_type,
           expires_in: response.expires_in,
         });
-        navigate('/sessions');
+
+        // Detect user role based on API access
+        const role = await detect_user_role(response.access_token);
+        set_user_role(role);
+
+        // Redirect based on role
+        if (role === 'admin') {
+          navigate('/admin/users');
+        } else if (role === 'teacher') {
+          navigate('/teacher/select-institution');
+        } else {
+          navigate('/sessions');
+        }
       } catch (err) {
         if (err instanceof ApiException) {
           set_error(err.message);
@@ -98,7 +110,7 @@ export function LoginPage() {
         }
       }
     },
-    [form_values, set_auth, set_loading, set_error, navigate]
+    [form_values, set_auth, set_user_role, set_loading, set_error, navigate]
   );
 
   /**
@@ -134,7 +146,19 @@ export function LoginPage() {
               token_type: result.token_type,
               expires_in: result.expires_in,
             });
-            navigate('/sessions');
+
+            // Detect user role based on API access
+            const role = await detect_user_role(result.access_token);
+            set_user_role(role);
+
+            // Redirect based on role
+            if (role === 'admin') {
+              navigate('/admin/users');
+            } else if (role === 'teacher') {
+              navigate('/teacher/select-institution');
+            } else {
+              navigate('/sessions');
+            }
           } catch (err) {
             if (err instanceof ApiException) {
               set_error(err.message);
@@ -153,7 +177,7 @@ export function LoginPage() {
       set_error('Failed to initialize Google Sign-In');
       set_google_loading(false);
     }
-  }, [set_auth, set_error, clear_error, navigate]);
+  }, [set_auth, set_user_role, set_error, clear_error, navigate]);
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12">

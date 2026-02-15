@@ -69,6 +69,9 @@ export interface DeleteSessionResponse {
   session_id: string;
 }
 
+// User role type
+export type UserRole = 'admin' | 'teacher' | 'student' | null;
+
 // User type for auth store
 export interface User {
   id: string;
@@ -76,6 +79,7 @@ export interface User {
   first_name: string | null;
   last_name: string | null;
   google_id?: string | null;
+  role?: UserRole;
 }
 
 // API error response
