@@ -594,6 +594,56 @@ Ver `.env.example` para la lista completa de variables requeridas.
 | `REDIS_PORT` | Puerto de Redis |
 | `PORT` | Puerto del servidor (default: 3001) |
 
+## Setup Completo desde Cero (Nuevo Desarrollador/Agente)
+
+Si es tu primera vez o tienes problemas, sigue estos pasos en orden:
+
+```bash
+# 1. Clonar y entrar al directorio
+cd backend
+
+# 2. Crear archivo .env
+cp .env.example .env
+# Editar .env con tu DATABASE_URL (ej: postgresql://user@localhost:5432/phase3_db)
+
+# 3. Eliminar cualquier estado previo problemático
+rm -rf node_modules package-lock.json
+rm -f prisma/.env  # Si existe, causa conflictos
+
+# 4. Instalar dependencias
+npm install
+
+# 5. Generar cliente Prisma
+npx prisma generate
+
+# 6. Verificar que el cliente tiene los modelos
+node -e "const { PrismaClient } = require('@prisma/client'); const p = new PrismaClient(); console.log('Models:', Object.keys(p).filter(k => k.startsWith('m0')).length);"
+# Debe mostrar: Models: 21 (o más)
+
+# 7. Crear/resetear base de datos
+createdb phase3_db  # Si no existe
+npx prisma migrate dev --name init
+# Si hay drift, responder 'y' para resetear
+
+# 8. Verificar con tests
+npm run test:e2e
+# Debe pasar 48+ tests
+```
+
+### Comandos de Emergencia
+
+```bash
+# Si todo falla, nuclear option:
+rm -rf node_modules package-lock.json prisma/migrations
+npm install
+npx prisma generate
+npx prisma migrate dev --name full_schema
+npm run prisma:seed
+npm run test:e2e
+```
+
+---
+
 ## Troubleshooting - Problemas Comunes
 
 ### Error: "Property 'm01_roles' does not exist on type 'PrismaClient'"
