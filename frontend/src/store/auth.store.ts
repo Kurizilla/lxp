@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User } from '@/types';
+import type { User, UserRole } from '@/types';
 
 interface AuthState {
   user: User | null;
+  user_role: UserRole;
   access_token: string | null;
   token_type: string | null;
   expires_at: number | null;
@@ -19,6 +20,7 @@ interface AuthActions {
     token_type: string;
     expires_in: number;
   }) => void;
+  set_user_role: (role: UserRole) => void;
   set_loading: (loading: boolean) => void;
   set_error: (error: string | null) => void;
   logout: () => void;
@@ -29,11 +31,46 @@ type AuthStore = AuthState & AuthActions;
 
 const STORAGE_KEY = 'm01_auth';
 
+/**
+ * Detect user role based on API access
+ * This is called after login to determine which dashboard to show
+ */
+export async function detect_user_role(access_token: string): Promise<UserRole> {
+  const headers = {
+    'Authorization': `Bearer ${access_token}`,
+    'Content-Type': 'application/json',
+  };
+
+  // Try admin endpoint first
+  try {
+    const admin_response = await fetch('/api/admin/users?limit=1', { headers });
+    if (admin_response.ok) {
+      return 'admin';
+    }
+  } catch {
+    // Not admin
+  }
+
+  // Try teacher endpoint
+  try {
+    const teacher_response = await fetch('/api/teacher/institutions', { headers });
+    if (teacher_response.ok) {
+      return 'teacher';
+    }
+  } catch {
+    // Not teacher
+  }
+
+  // Default to student
+  return 'student';
+}
+
 export const use_auth_store = create<AuthStore>()(
   persist(
     (set) => ({
       // Initial state
       user: null,
+      user_role: null,
       access_token: null,
       token_type: null,
       expires_at: null,
@@ -54,6 +91,8 @@ export const use_auth_store = create<AuthStore>()(
         });
       },
 
+      set_user_role: (user_role) => set({ user_role }),
+
       set_loading: (is_loading) => set({ is_loading }),
 
       set_error: (error) => set({ error, is_loading: false }),
@@ -61,6 +100,7 @@ export const use_auth_store = create<AuthStore>()(
       logout: () =>
         set({
           user: null,
+          user_role: null,
           access_token: null,
           token_type: null,
           expires_at: null,
@@ -74,6 +114,7 @@ export const use_auth_store = create<AuthStore>()(
       name: STORAGE_KEY,
       partialize: (state) => ({
         user: state.user,
+        user_role: state.user_role,
         access_token: state.access_token,
         token_type: state.token_type,
         expires_at: state.expires_at,

@@ -35,6 +35,25 @@ model m01_users {
   received_notifications   m01_notification_recipients[] @relation("ReceivedNotifications")
   notification_preferences m01_notification_preferences[]
 
+  // M09 Relations
+  created_calendar_events     m09_calendar_events[]              @relation("EventCreator")
+  hosted_class_sessions       m09_class_sessions[]               @relation("SessionHost")
+  class_session_participations m09_class_session_participants[]  @relation("SessionParticipant")
+  class_session_state_changes m09_class_session_state_logs[]     @relation("StateChangeUser")
+  created_whiteboard_elements m09_whiteboard_elements[]          @relation("WhiteboardElementCreator")
+
+  // M09 Offline Sync Relations
+  offline_queue_items         m09_offline_queue[]                @relation("UserOfflineQueue")
+  sync_conflicts              m09_sync_conflicts[]               @relation("UserSyncConflicts")
+  resolved_conflicts          m09_sync_conflicts[]               @relation("ConflictResolver")
+
+  // M21 Observation Relations
+  created_storage_buckets     m21_storage_buckets[]              @relation("StorageBucketCreator")
+  observations_as_teacher     m21_observation_recordings[]       @relation("ObservationTeacher")
+  observations_as_observer    m21_observation_recordings[]       @relation("ObservationObserver")
+  annotations_as_reviewer     m21_annotations[]                  @relation("AnnotationReviewer")
+  review_progress_as_reviewer m21_review_progress[]              @relation("ReviewProgressReviewer")
+
   @@index([email])
   @@index([google_id])
   @@index([is_active])
@@ -205,6 +224,13 @@ model m01_classrooms {
   subject     m01_subjects              @relation(fields: [subject_id], references: [id], onDelete: Cascade)
   enrollments m01_classroom_enrollments[]
 
+  // M09 Relations
+  calendar       m09_calendars?
+  class_sessions m09_class_sessions[]
+
+  // M21 Relations
+  observation_recordings m21_observation_recordings[]
+
   @@index([institution_id])
   @@index([subject_id])
   @@index([is_active])
@@ -314,4 +340,478 @@ model m01_notification_preferences {
   @@index([user_id])
   @@index([type])
   @@index([channel])
+}
+
+// ============================================================================
+// M09 - Calendars & Modo Clase (Class Mode Sessions)
+// ============================================================================
+
+/// Calendar event type enum
+enum M09CalendarEventType {
+  class_session
+  assignment_due
+  exam
+  meeting
+  holiday
+  custom
+}
+
+/// Calendar event recurrence pattern enum
+enum M09RecurrencePattern {
+  none
+  daily
+  weekly
+  biweekly
+  monthly
+}
+
+/// Class session state enum (modo clase states)
+enum M09ClassSessionState {
+  scheduled
+  waiting
+  active
+  paused
+  ended
+  cancelled
+}
+
+/// Whiteboard element type enum
+enum M09WhiteboardElementType {
+  stroke
+  text
+  shape
+  image
+  sticky_note
+}
+
+/// Calendar configuration for classrooms
+model m09_calendars {
+  id           String   @id @default(uuid())
+  classroom_id String   @unique
+  name         String
+  description  String?
+  timezone     String   @default("UTC")
+  is_active    Boolean  @default(true)
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  // Relations
+  classroom m01_classrooms      @relation(fields: [classroom_id], references: [id], onDelete: Cascade)
+  events    m09_calendar_events[]
+
+  @@index([classroom_id])
+  @@index([is_active])
+  @@index([created_at])
+}
+
+/// Calendar events for scheduling
+model m09_calendar_events {
+  id                 String                @id @default(uuid())
+  calendar_id        String
+  title              String
+  description        String?
+  event_type         M09CalendarEventType  @default(custom)
+  start_time         DateTime
+  end_time           DateTime
+  all_day            Boolean               @default(false)
+  recurrence_pattern M09RecurrencePattern  @default(none)
+  recurrence_end     DateTime?
+  location           String?
+  color              String?
+  metadata           Json?
+  created_by         String?
+  created_at         DateTime              @default(now())
+  updated_at         DateTime              @updatedAt
+
+  // Relations
+  calendar       m09_calendars       @relation(fields: [calendar_id], references: [id], onDelete: Cascade)
+  creator        m01_users?          @relation("EventCreator", fields: [created_by], references: [id], onDelete: SetNull)
+  class_sessions m09_class_sessions[]
+
+  @@index([calendar_id])
+  @@index([start_time])
+  @@index([end_time])
+  @@index([event_type])
+  @@index([created_by])
+  @@index([created_at])
+}
+
+/// Class sessions for modo clase (live classroom sessions)
+model m09_class_sessions {
+  id               String               @id @default(uuid())
+  classroom_id     String
+  event_id         String?
+  title            String
+  description      String?
+  state            M09ClassSessionState @default(scheduled)
+  scheduled_start  DateTime
+  scheduled_end    DateTime?
+  actual_start     DateTime?
+  actual_end       DateTime?
+  host_id          String?
+  join_code        String?              @unique
+  max_participants Int?
+  settings         Json?
+  created_at       DateTime             @default(now())
+  updated_at       DateTime             @updatedAt
+
+  // Relations
+  classroom    m01_classrooms                 @relation(fields: [classroom_id], references: [id], onDelete: Cascade)
+  event        m09_calendar_events?           @relation(fields: [event_id], references: [id], onDelete: SetNull)
+  host         m01_users?                     @relation("SessionHost", fields: [host_id], references: [id], onDelete: SetNull)
+  participants m09_class_session_participants[]
+  whiteboards  m09_whiteboards[]
+  state_logs   m09_class_session_state_logs[]
+
+  @@index([classroom_id])
+  @@index([event_id])
+  @@index([state])
+  @@index([scheduled_start])
+  @@index([host_id])
+  @@index([join_code])
+  @@index([created_at])
+}
+
+/// Participants in class sessions
+model m09_class_session_participants {
+  id           String    @id @default(uuid())
+  session_id   String
+  user_id      String
+  role         String    @default("student")
+  joined_at    DateTime  @default(now())
+  left_at      DateTime?
+  is_present   Boolean   @default(true)
+  hand_raised  Boolean   @default(false)
+  metadata     Json?
+
+  // Relations
+  session m09_class_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user    m01_users          @relation("SessionParticipant", fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@unique([session_id, user_id])
+  @@index([session_id])
+  @@index([user_id])
+  @@index([is_present])
+  @@index([joined_at])
+}
+
+/// State transition logs for class sessions
+model m09_class_session_state_logs {
+  id             String               @id @default(uuid())
+  session_id     String
+  previous_state M09ClassSessionState?
+  new_state      M09ClassSessionState
+  changed_by     String?
+  reason         String?
+  created_at     DateTime             @default(now())
+
+  // Relations
+  session m09_class_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  user    m01_users?         @relation("StateChangeUser", fields: [changed_by], references: [id], onDelete: SetNull)
+
+  @@index([session_id])
+  @@index([created_at])
+  @@index([new_state])
+}
+
+/// Whiteboards for class sessions
+model m09_whiteboards {
+  id          String   @id @default(uuid())
+  session_id  String
+  name        String   @default("Main Whiteboard")
+  is_active   Boolean  @default(true)
+  background  String?
+  width       Int      @default(1920)
+  height      Int      @default(1080)
+  settings    Json?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  // Relations
+  session  m09_class_sessions       @relation(fields: [session_id], references: [id], onDelete: Cascade)
+  elements m09_whiteboard_elements[]
+
+  @@index([session_id])
+  @@index([is_active])
+  @@index([created_at])
+}
+
+/// Whiteboard elements/strokes
+model m09_whiteboard_elements {
+  id            String                    @id @default(uuid())
+  whiteboard_id String
+  element_type  M09WhiteboardElementType
+  content       Json
+  position_x    Float                     @default(0)
+  position_y    Float                     @default(0)
+  width         Float?
+  height        Float?
+  rotation      Float                     @default(0)
+  z_index       Int                       @default(0)
+  style         Json?
+  created_by    String?
+  created_at    DateTime                  @default(now())
+  updated_at    DateTime                  @updatedAt
+
+  // Relations
+  whiteboard m09_whiteboards @relation(fields: [whiteboard_id], references: [id], onDelete: Cascade)
+  creator    m01_users?      @relation("WhiteboardElementCreator", fields: [created_by], references: [id], onDelete: SetNull)
+
+  @@index([whiteboard_id])
+  @@index([element_type])
+  @@index([created_by])
+  @@index([created_at])
+  @@index([z_index])
+}
+
+// ============================================================================
+// M09 - Offline Sync
+// ============================================================================
+
+/// Sync operation type enum
+enum M09SyncOperationType {
+  create
+  update
+  delete
+}
+
+/// Sync status enum
+enum M09SyncStatus {
+  pending
+  syncing
+  synced
+  failed
+  conflict
+}
+
+/// Conflict resolution status enum
+enum M09ConflictResolutionStatus {
+  pending
+  client_wins
+  server_wins
+  merged
+  discarded
+}
+
+/// Offline queue for storing operations performed offline
+model m09_offline_queue {
+  id             String                @id @default(uuid())
+  user_id        String
+  entity_type    String                // e.g., 'whiteboard_element', 'calendar_event', 'class_session'
+  entity_id      String?               // ID of the entity being modified (null for create operations)
+  operation_type M09SyncOperationType
+  payload        Json                  // The data for the operation
+  client_version Int                   @default(1)
+  server_version Int?                  // Version on server at time of sync (for conflict detection)
+  status         M09SyncStatus         @default(pending)
+  error_message  String?               // Error message if sync failed
+  retry_count    Int                   @default(0)
+  client_timestamp DateTime            // Timestamp when operation was created on client
+  synced_at      DateTime?             // Timestamp when operation was synced to server
+  created_at     DateTime              @default(now())
+  updated_at     DateTime              @updatedAt
+
+  // Relations
+  user      m01_users          @relation("UserOfflineQueue", fields: [user_id], references: [id], onDelete: Cascade)
+  conflicts m09_sync_conflicts[] @relation("QueueConflicts")
+
+  @@index([user_id])
+  @@index([entity_type])
+  @@index([entity_id])
+  @@index([status])
+  @@index([client_timestamp])
+  @@index([created_at])
+}
+
+/// Sync conflicts for tracking version conflicts during bidirectional sync
+model m09_sync_conflicts {
+  id                 String                       @id @default(uuid())
+  queue_item_id      String
+  user_id            String
+  entity_type        String
+  entity_id          String
+  client_version     Int
+  server_version     Int
+  client_data        Json                         // Data from client
+  server_data        Json                         // Data from server
+  merged_data        Json?                        // Merged data (if applicable)
+  resolution_status  M09ConflictResolutionStatus  @default(pending)
+  resolved_by        String?                      // User who resolved the conflict
+  resolved_at        DateTime?
+  has_version_conflict Boolean                    @default(true)
+  conflict_details   Json?                        // Details about what conflicted
+  created_at         DateTime                     @default(now())
+  updated_at         DateTime                     @updatedAt
+
+  // Relations
+  queue_item m09_offline_queue @relation("QueueConflicts", fields: [queue_item_id], references: [id], onDelete: Cascade)
+  user       m01_users         @relation("UserSyncConflicts", fields: [user_id], references: [id], onDelete: Cascade)
+  resolver   m01_users?        @relation("ConflictResolver", fields: [resolved_by], references: [id], onDelete: SetNull)
+
+  @@index([queue_item_id])
+  @@index([user_id])
+  @@index([entity_type])
+  @@index([entity_id])
+  @@index([resolution_status])
+  @@index([has_version_conflict])
+  @@index([created_at])
+}
+
+// ============================================================================
+// M21 - Classroom Observations & AI Analysis
+// ============================================================================
+
+/// Status enum for observation recordings
+enum M21ObservationRecordingStatus {
+  uploading
+  processing
+  ready
+  transcribing
+  analyzing
+  completed
+  failed
+  archived
+}
+
+/// Status enum for review progress
+enum M21ReviewProgressStatus {
+  not_started
+  in_progress
+  review_pending
+  completed
+  archived
+}
+
+/// Storage buckets for S3-compatible storage
+model m21_storage_buckets {
+  id                   String   @id @default(uuid())
+  name                 String   @unique
+  s3_bucket            String
+  s3_region            String
+  access_key_encrypted String
+  secret_key_encrypted String
+  created_by_id        String?
+  is_active            Boolean  @default(true)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  // Relations
+  created_by            m01_users?               @relation("StorageBucketCreator", fields: [created_by_id], references: [id], onDelete: SetNull)
+  observation_recordings m21_observation_recordings[]
+
+  @@index([name])
+  @@index([is_active])
+  @@index([created_by_id])
+}
+
+/// Observation recordings for classroom observations
+model m21_observation_recordings {
+  id                String                        @id @default(uuid())
+  storage_bucket_id String
+  class_id          String
+  teacher_id        String
+  observer_id       String?
+  session_date      DateTime
+  file_key          String
+  mime_type         String
+  duration_seconds  Int?
+  file_size_bytes   BigInt?
+  status            M21ObservationRecordingStatus @default(uploading)
+  metadata          Json?
+  created_at        DateTime                      @default(now())
+  updated_at        DateTime                      @updatedAt
+
+  // Relations
+  storage_bucket  m21_storage_buckets   @relation(fields: [storage_bucket_id], references: [id], onDelete: Cascade)
+  classroom       m01_classrooms        @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  teacher         m01_users             @relation("ObservationTeacher", fields: [teacher_id], references: [id], onDelete: Cascade)
+  observer        m01_users?            @relation("ObservationObserver", fields: [observer_id], references: [id], onDelete: SetNull)
+  transcripts     m21_transcripts[]
+  ai_reports      m21_ai_reports[]
+  annotations     m21_annotations[]
+  review_progress m21_review_progress[]
+
+  @@index([storage_bucket_id])
+  @@index([class_id])
+  @@index([teacher_id])
+  @@index([observer_id])
+  @@index([session_date])
+  @@index([status])
+  @@index([created_at])
+}
+
+/// Transcripts for observation recordings
+model m21_transcripts {
+  id                       String   @id @default(uuid())
+  observation_recording_id String   @unique
+  full_text                String
+  segments                 Json?
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  // Relations
+  observation_recording m21_observation_recordings @relation(fields: [observation_recording_id], references: [id], onDelete: Cascade)
+
+  @@index([observation_recording_id])
+}
+
+/// AI-generated reports for observation recordings
+model m21_ai_reports {
+  id                       String   @id @default(uuid())
+  observation_recording_id String   @unique
+  teacher_score            Decimal? @db.Decimal(5, 2)
+  engagement_score         Decimal? @db.Decimal(5, 2)
+  insights                 Json?
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  // Relations
+  observation_recording m21_observation_recordings @relation(fields: [observation_recording_id], references: [id], onDelete: Cascade)
+
+  @@index([observation_recording_id])
+  @@index([teacher_score])
+  @@index([engagement_score])
+}
+
+/// Annotations on observation recordings by reviewers
+model m21_annotations {
+  id                       String   @id @default(uuid())
+  observation_recording_id String
+  reviewer_id              String?
+  timestamp_seconds        Int
+  text                     String
+  is_ai_suggestion         Boolean  @default(false)
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  // Relations
+  observation_recording m21_observation_recordings @relation(fields: [observation_recording_id], references: [id], onDelete: Cascade)
+  reviewer              m01_users?                 @relation("AnnotationReviewer", fields: [reviewer_id], references: [id], onDelete: SetNull)
+
+  @@index([observation_recording_id])
+  @@index([reviewer_id])
+  @@index([timestamp_seconds])
+  @@index([is_ai_suggestion])
+  @@index([created_at])
+}
+
+/// Review progress tracking for observation recordings
+model m21_review_progress {
+  id                       String                  @id @default(uuid())
+  observation_recording_id String
+  reviewer_id              String
+  status                   M21ReviewProgressStatus @default(not_started)
+  progress_percentage      Int                     @default(0)
+  created_at               DateTime                @default(now())
+  updated_at               DateTime                @updatedAt
+
+  // Relations
+  observation_recording m21_observation_recordings @relation(fields: [observation_recording_id], references: [id], onDelete: Cascade)
+  reviewer              m01_users                  @relation("ReviewProgressReviewer", fields: [reviewer_id], references: [id], onDelete: Cascade)
+
+  @@unique([observation_recording_id, reviewer_id])
+  @@index([observation_recording_id])
+  @@index([reviewer_id])
+  @@index([status])
+  @@index([progress_percentage])
 }

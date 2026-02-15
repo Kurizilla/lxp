@@ -262,6 +262,76 @@ El asistente devuelve respuestas contextuales basadas en:
 - **route**: Si incluye `classroom`, `admin`, `subject`, `notification`, etc.
 - **module**: Si es `m01` (auth), `content`, `assessment`, `analytics`, etc.
 
+### Offline Sync (`/m09/offline`)
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/m09/offline/push` | Push operaciones offline (client → server) |
+| POST | `/m09/offline/pull` | Pull cambios del servidor (server → client) |
+| GET | `/m09/offline/status` | Estado del sync (pending, synced, failed, conflicts) |
+| GET | `/m09/offline/conflicts` | Listar conflictos de versión |
+| PATCH | `/m09/offline/conflicts/resolve` | Resolver un conflicto |
+| PATCH | `/m09/offline/conflicts/resolve-bulk` | Resolver múltiples conflictos |
+| DELETE | `/m09/offline/history` | Limpiar historial de operaciones sincronizadas |
+
+#### Request Body para `POST /m09/offline/push`
+```json
+{
+  "operations": [
+    {
+      "entity_type": "whiteboard_element",
+      "entity_id": "<uuid>",
+      "operation_type": "create|update|delete",
+      "payload": { ... },
+      "client_version": 1,
+      "client_timestamp": "2026-02-15T19:00:00.000Z"
+    }
+  ],
+  "last_sync_timestamp": 1739646000000
+}
+```
+
+#### Response para `POST /m09/offline/push`
+```json
+{
+  "synced": [
+    {
+      "id": "<queue-item-id>",
+      "entity_type": "whiteboard_element",
+      "entity_id": "<uuid>",
+      "operation_type": "create",
+      "status": "synced",
+      "server_version": 1,
+      "synced_at": "2026-02-15T19:05:00.000Z"
+    }
+  ],
+  "conflicts": [
+    {
+      "id": "<conflict-id>",
+      "entity_type": "whiteboard_element",
+      "entity_id": "<uuid>",
+      "client_version": 1,
+      "server_version": 2,
+      "client_data": { ... },
+      "server_data": { ... },
+      "has_version_conflict": true
+    }
+  ],
+  "failed": [],
+  "sync_timestamp": 1739646300000,
+  "message": "Processed 2 operations"
+}
+```
+
+#### Request Body para `PATCH /m09/offline/conflicts/resolve`
+```json
+{
+  "conflict_id": "<uuid>",
+  "resolution": "client_wins|server_wins|merged|discarded",
+  "merged_data": { ... }
+}
+```
+
 ### Admin - Configuración (`/admin`)
 
 | Método | Endpoint | Descripción |
@@ -447,7 +517,73 @@ curl -X PATCH http://localhost:3001/notifications/preferences \
   }' | jq
 ```
 
+## Probar Offline Sync Endpoints
+
+### Opción 1: Script automático (recomendado)
+
+```bash
+# Asegúrate de que el servidor esté corriendo
+npm start &
+
+# Ejecutar tests de offline sync
+npm run test:offline
+
+# O especificar puerto
+npm run test:offline 3002
+```
+
+El script prueba:
+- ✅ Login como admin
+- ✅ GET /m09/offline/status (estado inicial)
+- ✅ GET /m09/offline/conflicts (vacío)
+- ✅ POST /m09/offline/push (operación create)
+- ✅ POST /m09/offline/push (múltiples operaciones)
+- ✅ POST /m09/offline/pull (obtener cambios)
+- ✅ GET /m09/offline/status (después de operaciones)
+- ✅ Validación 401 sin token
+- ✅ GET /m09/offline/conflicts con filtros
+- ✅ DELETE /m09/offline/history
+
 ### Opción 2: Manual con curl
+
+```bash
+# 1. Login para obtener token
+TOKEN=$(curl -s -X POST http://localhost:3001/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "admin@test.com", "password": "Admin123!"}' | jq -r '.access_token')
+
+# 2. Ver estado del sync
+curl http://localhost:3001/m09/offline/status \
+  -H "Authorization: Bearer $TOKEN" | jq
+
+# 3. Push operación offline
+curl -X POST http://localhost:3001/m09/offline/push \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "operations": [{
+      "entity_type": "whiteboard_element",
+      "operation_type": "create",
+      "payload": {"content": "test", "position_x": 100},
+      "client_version": 1,
+      "client_timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%S.000Z)'"
+    }]
+  }' | jq
+
+# 4. Pull cambios del servidor
+curl -X POST http://localhost:3001/m09/offline/pull \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"limit": 10}' | jq
+
+# 5. Ver conflictos
+curl http://localhost:3001/m09/offline/conflicts \
+  -H "Authorization: Bearer $TOKEN" | jq
+```
+
+---
+
+### Opción 2: Manual con curl (Teacher)
 
 ```bash
 # 1. Login como teacher
@@ -593,6 +729,195 @@ Ver `.env.example` para la lista completa de variables requeridas.
 | `REDIS_HOST` | Host de Redis |
 | `REDIS_PORT` | Puerto de Redis |
 | `PORT` | Puerto del servidor (default: 3001) |
+
+## Setup Completo desde Cero (Nuevo Desarrollador/Agente)
+
+Si es tu primera vez o tienes problemas, sigue estos pasos en orden:
+
+```bash
+# 1. Clonar y entrar al directorio
+cd backend
+
+# 2. Crear archivo .env
+cp .env.example .env
+# Editar .env con tu DATABASE_URL (ej: postgresql://user@localhost:5432/phase3_db)
+
+# 3. Eliminar cualquier estado previo problemático
+rm -rf node_modules package-lock.json
+rm -f prisma/.env  # Si existe, causa conflictos
+
+# 4. Instalar dependencias
+npm install
+
+# 5. Generar cliente Prisma
+npx prisma generate
+
+# 6. Verificar que el cliente tiene los modelos
+node -e "const { PrismaClient } = require('@prisma/client'); const p = new PrismaClient(); console.log('Models:', Object.keys(p).filter(k => k.startsWith('m0')).length);"
+# Debe mostrar: Models: 21 (o más)
+
+# 7. Crear/resetear base de datos
+createdb phase3_db  # Si no existe
+npx prisma migrate dev --name init
+# Si hay drift, responder 'y' para resetear
+
+# 8. Verificar con tests
+npm run test:e2e
+# Debe pasar 48+ tests
+```
+
+### Comandos de Emergencia
+
+```bash
+# Si todo falla, nuclear option:
+rm -rf node_modules package-lock.json prisma/migrations
+npm install
+npx prisma generate
+npx prisma migrate dev --name full_schema
+npm run prisma:seed
+npm run test:e2e
+```
+
+---
+
+## Troubleshooting - Problemas Comunes
+
+### Error: "Property 'm01_roles' does not exist on type 'PrismaClient'"
+
+Este error ocurre cuando el cliente Prisma no está sincronizado con el schema. Solución:
+
+```bash
+# 1. Eliminar node_modules y regenerar todo
+rm -rf node_modules package-lock.json
+npm install
+npx prisma generate
+
+# 2. Verificar que el cliente tiene los modelos
+node -e "const { PrismaClient } = require('@prisma/client'); const p = new PrismaClient(); console.log('m01_roles:', typeof p.m01_roles);"
+# Debe imprimir: m01_roles: object
+```
+
+### Error: "The table does not exist in the current database"
+
+La base de datos no tiene las tablas. Necesitas correr las migraciones:
+
+```bash
+# Opción 1: Si tienes migraciones existentes
+npx prisma migrate dev
+
+# Opción 2: Si hay conflictos, resetear todo (BORRA DATOS)
+rm -rf prisma/migrations
+npx prisma migrate dev --name full_schema
+```
+
+### Error: "Drift detected" o "Migration missing from local directory"
+
+Hay diferencias entre la BD y las migraciones locales:
+
+```bash
+# Resetear la BD y crear nueva migración
+npx prisma migrate reset --force
+```
+
+### Error: "Environment variable not found: DATABASE_URL"
+
+Falta el archivo `.env`. Crear uno:
+
+```bash
+cp .env.example .env
+# Editar .env con tu DATABASE_URL
+```
+
+### Error: "Conflicting env vars" (prisma/.env vs .env)
+
+Hay dos archivos .env. Eliminar el de prisma:
+
+```bash
+rm prisma/.env
+```
+
+---
+
+## Para Agentes y Desarrolladores (DB Tasks)
+
+### Paso a Paso para Tasks de Base de Datos/Prisma
+
+Cuando trabajes en una task que modifica el schema de Prisma, sigue estos pasos:
+
+#### 1. Verificar el estado actual
+
+```bash
+# Ver líneas del schema (debe coincidir con lo esperado)
+wc -l prisma/schema.prisma
+
+# Verificar que el schema es válido
+npx prisma validate
+```
+
+#### 2. Hacer cambios al schema
+
+Editar `prisma/schema.prisma` siguiendo las convenciones:
+- **Nombres de tablas**: `m{XX}_{nombre}` (ej: `m09_calendars`)
+- **Campos**: snake_case (ej: `created_at`, `session_id`)
+- **Siempre incluir**: índices en `session_id`, `created_at`, y campos de búsqueda frecuente
+
+#### 3. Validar y generar cliente
+
+```bash
+npx prisma validate
+npx prisma generate
+npm run typecheck
+```
+
+#### 4. Crear migración (si aplica)
+
+```bash
+npx prisma migrate dev --name descriptive_name
+```
+
+#### 5. Health checks antes de commit
+
+```bash
+npx prisma validate       # Schema válido
+npx prisma generate       # Cliente generado
+npm run typecheck         # TypeScript compila
+```
+
+### Verificar Modelos M09 (Calendars & Modo Clase)
+
+```bash
+# Verificar que las tablas M09 existen en el cliente
+node -e "
+const { PrismaClient } = require('@prisma/client');
+const p = new PrismaClient();
+const m09 = Object.keys(p).filter(k => k.startsWith('m09_'));
+console.log('M09 models:', m09.join(', '));
+"
+# Debe mostrar: m09_calendars, m09_calendar_events, m09_class_sessions, etc.
+```
+
+### Schema de Módulos
+
+| Módulo | Prefijo | Descripción |
+|--------|---------|-------------|
+| M01 | `m01_` | Auth, Users, Roles, Organizations |
+| M09 | `m09_` | Calendars, Modo Clase, Whiteboards |
+
+### Tablas M09 (Calendars & Modo Clase)
+
+| Tabla | Descripción |
+|-------|-------------|
+| `m09_calendars` | Calendario por aula |
+| `m09_calendar_events` | Eventos con recurrencia |
+| `m09_class_sessions` | Sesiones "modo clase" en vivo |
+| `m09_class_session_participants` | Participantes en sesiones |
+| `m09_class_session_state_logs` | Log de cambios de estado |
+| `m09_whiteboards` | Pizarras por sesión |
+| `m09_whiteboard_elements` | Elementos de pizarra |
+| `m09_offline_queue` | Cola de operaciones offline |
+| `m09_sync_conflicts` | Conflictos de versión en sync |
+
+---
 
 ## Contribuir
 
