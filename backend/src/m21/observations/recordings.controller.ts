@@ -23,6 +23,7 @@ import { M21ObservationsGuard, M21ObservationsRequest } from '../guards/m21-obse
 import { ObservationsService } from './observations.service';
 import { UploadService, M21PresignedUrlResponse } from './upload.service';
 import { TranscriptionService } from './transcription.service';
+import { AnalysisService } from './analysis.service';
 import {
   M21UploadRecordingDto,
   M21UpdateRecordingDto,
@@ -36,6 +37,11 @@ import {
   M21TranscriptResponseDto,
   M21TranscriptionJobResponseDto,
 } from '../dto/transcription.dto';
+import {
+  M21RequestAnalysisDto,
+  M21AiReportResponseDto,
+  M21AnalysisJobResponseDto,
+} from '../dto/analysis.dto';
 
 /**
  * DTO for generating a presigned URL
@@ -79,6 +85,7 @@ export class RecordingsController {
     private readonly observationsService: ObservationsService,
     private readonly uploadService: UploadService,
     private readonly transcriptionService: TranscriptionService,
+    private readonly analysisService: AnalysisService,
   ) {}
 
   // ============================================================================
@@ -340,5 +347,73 @@ export class RecordingsController {
     @Req() req: M21ObservationsRequest,
   ): Promise<M21TranscriptionJobResponseDto> {
     return this.transcriptionService.getTranscriptionStatus(id, req.userWithPermissions!);
+  }
+
+  // ============================================================================
+  // AI ANALYSIS
+  // ============================================================================
+
+  /**
+   * POST /m21/recordings/:id/analyze
+   * Queue an AI analysis job for a recording
+   * 
+   * This endpoint:
+   * 1. Validates the recording exists and is in an analyzable state
+   * 2. Updates the recording status to 'analyzing'
+   * 3. Queues a BullMQ job for async AI analysis
+   * 4. Returns the job status
+   * 
+   * The recording must be in 'ready', 'completed', or 'transcribing' status
+   * 
+   * Analysis generates:
+   * - Teacher score (0-100)
+   * - Engagement score (0-100)
+   * - Insights with recommendations
+   */
+  @Post(':id/analyze')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async queueAnalysis(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: M21RequestAnalysisDto,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21AnalysisJobResponseDto> {
+    return this.analysisService.queueAnalysis(id, dto, req.userWithPermissions!);
+  }
+
+  /**
+   * GET /m21/recordings/:id/report
+   * Get the AI analysis report for a recording
+   * 
+   * Returns the full AI report with:
+   * - teacher_score: Overall teaching effectiveness score (0-100)
+   * - engagement_score: Student engagement score (0-100)
+   * - insights: Array of categorized insights with recommendations
+   * 
+   * Throws 404 if report doesn't exist yet
+   */
+  @Get(':id/report')
+  async getReport(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21AiReportResponseDto> {
+    return this.analysisService.getReport(id, req.userWithPermissions!);
+  }
+
+  /**
+   * GET /m21/recordings/:id/analysis-status
+   * Get the status of an AI analysis job
+   * 
+   * Returns the current status of the analysis:
+   * - pending: Not started
+   * - processing: In progress
+   * - completed: Report available
+   * - failed: Analysis failed
+   */
+  @Get(':id/analysis-status')
+  async getAnalysisStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21AnalysisJobResponseDto> {
+    return this.analysisService.getAnalysisStatus(id, req.userWithPermissions!);
   }
 }
