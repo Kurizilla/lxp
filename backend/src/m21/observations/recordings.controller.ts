@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../../m01/auth/jwt-auth.guard';
 import { M21ObservationsGuard, M21ObservationsRequest } from '../guards/m21-observations.guard';
 import { ObservationsService } from './observations.service';
 import { UploadService, M21PresignedUrlResponse } from './upload.service';
+import { TranscriptionService } from './transcription.service';
 import {
   M21UploadRecordingDto,
   M21UpdateRecordingDto,
@@ -30,6 +31,11 @@ import {
   M21RecordingResponseDto,
   M21ListRecordingsQueryDto,
 } from '../dto/upload-recording.dto';
+import {
+  M21RequestTranscriptionDto,
+  M21TranscriptResponseDto,
+  M21TranscriptionJobResponseDto,
+} from '../dto/transcription.dto';
 
 /**
  * DTO for generating a presigned URL
@@ -72,6 +78,7 @@ export class RecordingsController {
   constructor(
     private readonly observationsService: ObservationsService,
     private readonly uploadService: UploadService,
+    private readonly transcriptionService: TranscriptionService,
   ) {}
 
   // ============================================================================
@@ -274,5 +281,64 @@ export class RecordingsController {
     @Req() req: M21ObservationsRequest,
   ): Promise<M21RecordingResponseDto> {
     return this.observationsService.updateRecording(id, { status: dto.status as any }, req.userWithPermissions!);
+  }
+
+  // ============================================================================
+  // TRANSCRIPTION
+  // ============================================================================
+
+  /**
+   * POST /m21/recordings/:id/transcribe
+   * Queue a transcription job for a recording
+   * 
+   * This endpoint:
+   * 1. Validates the recording exists and is in a transcribable state
+   * 2. Updates the recording status to 'transcribing'
+   * 3. Queues a BullMQ job for async transcription
+   * 4. Returns the job status
+   * 
+   * The recording must be in 'ready' or 'completed' status
+   */
+  @Post(':id/transcribe')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async queueTranscription(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: M21RequestTranscriptionDto,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21TranscriptionJobResponseDto> {
+    return this.transcriptionService.queueTranscription(id, dto, req.userWithPermissions!);
+  }
+
+  /**
+   * GET /m21/recordings/:id/transcript
+   * Get the transcript for a recording
+   * 
+   * Returns the full transcript with segments if transcription has completed
+   * Throws 404 if transcript doesn't exist yet
+   */
+  @Get(':id/transcript')
+  async getTranscript(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21TranscriptResponseDto> {
+    return this.transcriptionService.getTranscript(id, req.userWithPermissions!);
+  }
+
+  /**
+   * GET /m21/recordings/:id/transcription-status
+   * Get the status of a transcription job
+   * 
+   * Returns the current status of the transcription:
+   * - pending: Not started
+   * - processing: In progress
+   * - completed: Transcript available
+   * - failed: Transcription failed
+   */
+  @Get(':id/transcription-status')
+  async getTranscriptionStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21TranscriptionJobResponseDto> {
+    return this.transcriptionService.getTranscriptionStatus(id, req.userWithPermissions!);
   }
 }

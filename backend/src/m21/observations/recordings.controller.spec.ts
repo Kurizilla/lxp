@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { RecordingsController, M21GeneratePresignedUrlDto } from './recordings.controller';
 import { ObservationsService } from './observations.service';
 import { UploadService, M21PresignedUrlResponse } from './upload.service';
+import { TranscriptionService } from './transcription.service';
 import { M21ObservationsGuard, M21ObservationsRequest } from '../guards/m21-observations.guard';
 import { JwtAuthGuard } from '../../m01/auth/jwt-auth.guard';
 import { M21UserWithPermissions } from '../casl/m21-ability.factory';
@@ -10,6 +11,7 @@ import {
   M21RecordingResponseDto,
   M21RecordingStatus,
 } from '../dto/upload-recording.dto';
+import { M21TranscriptionJobStatus } from '../dto/transcription.dto';
 
 describe('RecordingsController', () => {
   let controller: RecordingsController;
@@ -79,6 +81,12 @@ describe('RecordingsController', () => {
     updateRecordingStatus: jest.fn(),
   };
 
+  const mockTranscriptionService = {
+    queueTranscription: jest.fn(),
+    getTranscript: jest.fn(),
+    getTranscriptionStatus: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RecordingsController],
@@ -90,6 +98,10 @@ describe('RecordingsController', () => {
         {
           provide: UploadService,
           useValue: mockUploadService,
+        },
+        {
+          provide: TranscriptionService,
+          useValue: mockTranscriptionService,
         },
       ],
     })
@@ -327,6 +339,73 @@ describe('RecordingsController', () => {
         { status: 'completed' },
         mockUserWithPermissions,
       );
+    });
+  });
+
+  // ============================================================================
+  // TRANSCRIPTION
+  // ============================================================================
+
+  describe('queueTranscription', () => {
+    it('should queue a transcription job', async () => {
+      const response = {
+        job_id: 'job-123',
+        recording_id: 'recording-123',
+        status: M21TranscriptionJobStatus.pending,
+        message: 'Transcription job queued successfully',
+        created_at: new Date(),
+      };
+
+      mockTranscriptionService.queueTranscription.mockResolvedValue(response);
+
+      const result = await controller.queueTranscription('recording-123', { language: 'es' }, mockRequest);
+
+      expect(result).toEqual(response);
+      expect(mockTranscriptionService.queueTranscription).toHaveBeenCalledWith(
+        'recording-123',
+        { language: 'es' },
+        mockUserWithPermissions,
+      );
+    });
+  });
+
+  describe('getTranscript', () => {
+    it('should return the transcript for a recording', async () => {
+      const response = {
+        transcript: {
+          id: 'transcript-123',
+          observation_recording_id: 'recording-123',
+          full_text: 'Test transcript text',
+          segments: [],
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      };
+
+      mockTranscriptionService.getTranscript.mockResolvedValue(response);
+
+      const result = await controller.getTranscript('recording-123', mockRequest);
+
+      expect(result).toEqual(response);
+      expect(mockTranscriptionService.getTranscript).toHaveBeenCalledWith('recording-123', mockUserWithPermissions);
+    });
+  });
+
+  describe('getTranscriptionStatus', () => {
+    it('should return the transcription status', async () => {
+      const response = {
+        job_id: 'status-check',
+        recording_id: 'recording-123',
+        status: M21TranscriptionJobStatus.completed,
+        message: 'Transcription completed',
+      };
+
+      mockTranscriptionService.getTranscriptionStatus.mockResolvedValue(response);
+
+      const result = await controller.getTranscriptionStatus('recording-123', mockRequest);
+
+      expect(result).toEqual(response);
+      expect(mockTranscriptionService.getTranscriptionStatus).toHaveBeenCalledWith('recording-123', mockUserWithPermissions);
     });
   });
 });
