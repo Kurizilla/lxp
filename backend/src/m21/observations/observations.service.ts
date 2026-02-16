@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma';
+import { CryptoService } from '../../common/crypto';
 import { M21AbilityFactory, M21UserWithPermissions } from '../casl/m21-ability.factory';
 import {
   M21UpsertBucketDto,
@@ -65,6 +66,7 @@ export class ObservationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly abilityFactory: M21AbilityFactory,
+    private readonly cryptoService: CryptoService,
   ) {}
 
   // ============================================================================
@@ -73,6 +75,8 @@ export class ObservationsService {
 
   /**
    * List storage buckets with pagination and filters
+   * Non-admin users only see active buckets
+   * Admin users can see all buckets or filter by is_active
    */
   async listBuckets(
     query: M21ListBucketsQueryDto,
@@ -89,13 +93,20 @@ export class ObservationsService {
       });
     }
 
+    const isAdmin = this.abilityFactory.isAdmin(userWithPermissions);
     const offset = query.offset || 0;
     const limit = Math.min(query.limit || this.DEFAULT_LIMIT, this.MAX_LIMIT);
 
     const whereClause: Record<string, unknown> = {};
-    if (query.is_active !== undefined) {
+    
+    // Non-admin users can only see active buckets
+    if (!isAdmin) {
+      whereClause.is_active = true;
+    } else if (query.is_active !== undefined) {
+      // Admin users can filter by is_active
       whereClause.is_active = query.is_active;
     }
+    
     if (query.created_by_id) {
       whereClause.created_by_id = query.created_by_id;
     }
@@ -208,15 +219,17 @@ export class ObservationsService {
       });
     }
 
-    // TODO: Encrypt access_key and secret_key before storing
-    // For now, storing as-is (stub implementation)
+    // Encrypt access_key and secret_key before storing
+    const encryptedAccessKey = this.cryptoService.encrypt(dto.access_key);
+    const encryptedSecretKey = this.cryptoService.encrypt(dto.secret_key);
+
     const bucket = await this.prisma.m21_storage_buckets.create({
       data: {
         name: dto.name,
         s3_bucket: dto.s3_bucket,
         s3_region: dto.s3_region,
-        access_key_encrypted: dto.access_key, // TODO: encrypt
-        secret_key_encrypted: dto.secret_key, // TODO: encrypt
+        access_key_encrypted: encryptedAccessKey,
+        secret_key_encrypted: encryptedSecretKey,
         is_active: dto.is_active ?? true,
         created_by_id: userWithPermissions.id,
       },
@@ -290,8 +303,12 @@ export class ObservationsService {
     if (dto.name !== undefined) updateData.name = dto.name;
     if (dto.s3_bucket !== undefined) updateData.s3_bucket = dto.s3_bucket;
     if (dto.s3_region !== undefined) updateData.s3_region = dto.s3_region;
-    if (dto.access_key !== undefined) updateData.access_key_encrypted = dto.access_key; // TODO: encrypt
-    if (dto.secret_key !== undefined) updateData.secret_key_encrypted = dto.secret_key; // TODO: encrypt
+    if (dto.access_key !== undefined) {
+      updateData.access_key_encrypted = this.cryptoService.encrypt(dto.access_key);
+    }
+    if (dto.secret_key !== undefined) {
+      updateData.secret_key_encrypted = this.cryptoService.encrypt(dto.secret_key);
+    }
     if (dto.is_active !== undefined) updateData.is_active = dto.is_active;
 
     const bucket = await this.prisma.m21_storage_buckets.update({
@@ -314,6 +331,37 @@ export class ObservationsService {
       },
       message: 'Storage bucket updated successfully',
     };
+  }
+
+  /**
+   * Get decrypted bucket credentials for internal S3 operations
+   * This method is for internal use only (e.g., generating presigned URLs)
+   * 
+   * @param bucketId - The bucket ID
+   * @returns Decrypted credentials or null if bucket not found
+   */
+  async getBucketCredentials(
+    bucketId: string,
+  ): Promise<{ access_key: string; secret_key: string; s3_bucket: string; s3_region: string } | null> {
+    const bucket = await this.prisma.m21_storage_buckets.findUnique({
+      where: { id: bucketId, is_active: true },
+    });
+
+    if (!bucket) {
+      return null;
+    }
+
+    try {
+      return {
+        access_key: this.cryptoService.decrypt(bucket.access_key_encrypted),
+        secret_key: this.cryptoService.decrypt(bucket.secret_key_encrypted),
+        s3_bucket: bucket.s3_bucket,
+        s3_region: bucket.s3_region,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to decrypt credentials for bucket ${bucketId}`);
+      return null;
+    }
   }
 
   // ============================================================================
