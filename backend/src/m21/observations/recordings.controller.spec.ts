@@ -3,6 +3,7 @@ import { RecordingsController, M21GeneratePresignedUrlDto } from './recordings.c
 import { ObservationsService } from './observations.service';
 import { UploadService, M21PresignedUrlResponse } from './upload.service';
 import { TranscriptionService } from './transcription.service';
+import { AnalysisService } from './analysis.service';
 import { M21ObservationsGuard, M21ObservationsRequest } from '../guards/m21-observations.guard';
 import { JwtAuthGuard } from '../../m01/auth/jwt-auth.guard';
 import { M21UserWithPermissions } from '../casl/m21-ability.factory';
@@ -12,6 +13,7 @@ import {
   M21RecordingStatus,
 } from '../dto/upload-recording.dto';
 import { M21TranscriptionJobStatus } from '../dto/transcription.dto';
+import { M21AnalysisJobStatus } from '../dto/analysis.dto';
 
 describe('RecordingsController', () => {
   let controller: RecordingsController;
@@ -87,6 +89,12 @@ describe('RecordingsController', () => {
     getTranscriptionStatus: jest.fn(),
   };
 
+  const mockAnalysisService = {
+    queueAnalysis: jest.fn(),
+    getReport: jest.fn(),
+    getAnalysisStatus: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RecordingsController],
@@ -102,6 +110,10 @@ describe('RecordingsController', () => {
         {
           provide: TranscriptionService,
           useValue: mockTranscriptionService,
+        },
+        {
+          provide: AnalysisService,
+          useValue: mockAnalysisService,
         },
       ],
     })
@@ -406,6 +418,74 @@ describe('RecordingsController', () => {
 
       expect(result).toEqual(response);
       expect(mockTranscriptionService.getTranscriptionStatus).toHaveBeenCalledWith('recording-123', mockUserWithPermissions);
+    });
+  });
+
+  // ============================================================================
+  // AI ANALYSIS
+  // ============================================================================
+
+  describe('queueAnalysis', () => {
+    it('should queue an analysis job', async () => {
+      const response = {
+        job_id: 'job-123',
+        recording_id: 'recording-123',
+        status: M21AnalysisJobStatus.pending,
+        message: 'Analysis job queued successfully',
+        created_at: new Date(),
+      };
+
+      mockAnalysisService.queueAnalysis.mockResolvedValue(response);
+
+      const result = await controller.queueAnalysis('recording-123', { analysis_type: 'full' }, mockRequest);
+
+      expect(result).toEqual(response);
+      expect(mockAnalysisService.queueAnalysis).toHaveBeenCalledWith(
+        'recording-123',
+        { analysis_type: 'full' },
+        mockUserWithPermissions,
+      );
+    });
+  });
+
+  describe('getReport', () => {
+    it('should return the AI report for a recording', async () => {
+      const response = {
+        report: {
+          id: 'report-123',
+          observation_recording_id: 'recording-123',
+          teacher_score: 85,
+          engagement_score: 78,
+          insights: [],
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      };
+
+      mockAnalysisService.getReport.mockResolvedValue(response);
+
+      const result = await controller.getReport('recording-123', mockRequest);
+
+      expect(result).toEqual(response);
+      expect(mockAnalysisService.getReport).toHaveBeenCalledWith('recording-123', mockUserWithPermissions);
+    });
+  });
+
+  describe('getAnalysisStatus', () => {
+    it('should return the analysis status', async () => {
+      const response = {
+        job_id: 'status-check',
+        recording_id: 'recording-123',
+        status: M21AnalysisJobStatus.completed,
+        message: 'Analysis completed',
+      };
+
+      mockAnalysisService.getAnalysisStatus.mockResolvedValue(response);
+
+      const result = await controller.getAnalysisStatus('recording-123', mockRequest);
+
+      expect(result).toEqual(response);
+      expect(mockAnalysisService.getAnalysisStatus).toHaveBeenCalledWith('recording-123', mockUserWithPermissions);
     });
   });
 });

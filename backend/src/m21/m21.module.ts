@@ -8,6 +8,8 @@ import { RecordingsController } from './observations/recordings.controller';
 import { UploadService } from './observations/upload.service';
 import { TranscriptionService } from './observations/transcription.service';
 import { TranscribeJobProcessor } from './observations/transcribe.job';
+import { AnalysisService } from './observations/analysis.service';
+import { AnalyzeJobProcessor } from './observations/analyze.job';
 import { M21AbilityFactory } from './casl/m21-ability.factory';
 import { M21ObservationsGuard } from './guards/m21-observations.guard';
 
@@ -53,9 +55,11 @@ export const M21_PROCESSING_QUEUE = 'm21_processing';
     UploadService,
     TranscriptionService,
     TranscribeJobProcessor,
+    AnalysisService,
+    AnalyzeJobProcessor,
     M21AbilityFactory,
     M21ObservationsGuard,
   ],
-  exports: [ObservationsService, UploadService, TranscriptionService, M21AbilityFactory],
+  exports: [ObservationsService, UploadService, TranscriptionService, AnalysisService, M21AbilityFactory],
 })
 export class M21Module {}
