@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ObservationsController } from './observations.controller';
 import { ObservationsService } from './observations.service';
+import { DashboardService } from './dashboard.service';
 import { M21ObservationsGuard, M21ObservationsRequest } from '../guards/m21-observations.guard';
 import { JwtAuthGuard } from '../../m01/auth/jwt-auth.guard';
 import { M21UserWithPermissions } from '../casl/m21-ability.factory';
@@ -117,6 +118,13 @@ describe('ObservationsController', () => {
     updateReviewProgress: jest.fn(),
   };
 
+  const mockDashboardService = {
+    getSummaryList: jest.fn(),
+    getTeacherMetrics: jest.fn(),
+    getEngagementTrends: jest.fn(),
+    compareSessions: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ObservationsController],
@@ -124,6 +132,10 @@ describe('ObservationsController', () => {
         {
           provide: ObservationsService,
           useValue: mockObservationsService,
+        },
+        {
+          provide: DashboardService,
+          useValue: mockDashboardService,
         },
       ],
     })

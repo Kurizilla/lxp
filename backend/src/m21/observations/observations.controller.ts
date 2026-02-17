@@ -49,6 +49,17 @@ import {
   M21ReviewProgressResponseDto,
   M21ListReviewProgressQueryDto,
 } from '../dto/review-progress.dto';
+import {
+  M21DashboardSummaryQueryDto,
+  M21DashboardSummaryResponseDto,
+  M21TeacherMetricsQueryDto,
+  M21TeacherMetricsResponseDto,
+  M21EngagementTrendsQueryDto,
+  M21EngagementTrendsResponseDto,
+  M21CompareSessionsDto,
+  M21CompareSessionsResponseDto,
+} from '../dto/dashboard.dto';
+import { DashboardService } from './dashboard.service';
 
 /**
  * Controller for M21 Observations module
@@ -58,7 +69,10 @@ import {
 @Controller('observations')
 @UseGuards(JwtAuthGuard, M21ObservationsGuard)
 export class ObservationsController {
-  constructor(private readonly observationsService: ObservationsService) {}
+  constructor(
+    private readonly observationsService: ObservationsService,
+    private readonly dashboardService: DashboardService,
+  ) {}
 
   // ============================================================================
   // STORAGE BUCKETS
@@ -332,5 +346,62 @@ export class ObservationsController {
     @Req() req: M21ObservationsRequest,
   ): Promise<M21ReviewProgressResponseDto> {
     return this.observationsService.updateReviewProgress(id, dto, req.userWithPermissions!);
+  }
+
+  // ============================================================================
+  // DASHBOARD
+  // ============================================================================
+
+  /**
+   * GET /observations/dashboard/summary
+   * Get dashboard summary list with aggregates and offset pagination
+   * M21-F03-A: Summary list
+   */
+  @Get('dashboard/summary')
+  async getDashboardSummary(
+    @Query() query: M21DashboardSummaryQueryDto,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21DashboardSummaryResponseDto> {
+    return this.dashboardService.getSummaryList(query, req.userWithPermissions!);
+  }
+
+  /**
+   * GET /observations/dashboard/teacher-metrics
+   * Get aggregated metrics for a specific teacher
+   * M21-F03-B: Teacher metrics
+   */
+  @Get('dashboard/teacher-metrics')
+  async getTeacherMetrics(
+    @Query() query: M21TeacherMetricsQueryDto,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21TeacherMetricsResponseDto> {
+    return this.dashboardService.getTeacherMetrics(query, req.userWithPermissions!);
+  }
+
+  /**
+   * GET /observations/dashboard/engagement-trends
+   * Get engagement trends for a class over time with JSONB aggregates
+   * M21-F03-C: Class engagement trends
+   */
+  @Get('dashboard/engagement-trends')
+  async getEngagementTrends(
+    @Query() query: M21EngagementTrendsQueryDto,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21EngagementTrendsResponseDto> {
+    return this.dashboardService.getEngagementTrends(query, req.userWithPermissions!);
+  }
+
+  /**
+   * POST /observations/dashboard/compare
+   * Compare two observation sessions
+   * M21-F03-D: Compare two sessions
+   */
+  @Post('dashboard/compare')
+  @HttpCode(HttpStatus.OK)
+  async compareSessions(
+    @Body() dto: M21CompareSessionsDto,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21CompareSessionsResponseDto> {
+    return this.dashboardService.compareSessions(dto, req.userWithPermissions!);
   }
 }
