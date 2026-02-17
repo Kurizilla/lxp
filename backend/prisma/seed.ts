@@ -55,6 +55,14 @@ async function main() {
   });
   console.log('✅ Created admin user:', adminUser.email);
 
+  // Asegurar que admin@test.com solo tenga rol admin (quitar teacher u otros si se asignaron por error)
+  await prisma.m01_user_roles.deleteMany({
+    where: {
+      user_id: adminUser.id,
+      role_id: { not: adminRole.id },
+    },
+  });
+
   // Assign admin role
   await prisma.m01_user_roles.upsert({
     where: {

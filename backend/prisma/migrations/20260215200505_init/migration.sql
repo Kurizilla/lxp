@@ -19,6 +19,15 @@ CREATE TYPE "M09ClassSessionState" AS ENUM ('scheduled', 'waiting', 'active', 'p
 -- CreateEnum
 CREATE TYPE "M09WhiteboardElementType" AS ENUM ('stroke', 'text', 'shape', 'image', 'sticky_note');
 
+-- CreateEnum
+CREATE TYPE "M09SyncOperationType" AS ENUM ('create', 'update', 'delete');
+
+-- CreateEnum
+CREATE TYPE "M09SyncStatus" AS ENUM ('pending', 'syncing', 'synced', 'failed', 'conflict');
+
+-- CreateEnum
+CREATE TYPE "M09ConflictResolutionStatus" AS ENUM ('pending', 'client_wins', 'server_wins', 'merged', 'discarded');
+
 -- CreateTable
 CREATE TABLE "m01_users" (
     "id" TEXT NOT NULL,
@@ -319,6 +328,50 @@ CREATE TABLE "m09_whiteboard_elements" (
     CONSTRAINT "m09_whiteboard_elements_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "m09_offline_queue" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "entity_type" TEXT NOT NULL,
+    "entity_id" TEXT,
+    "operation_type" "M09SyncOperationType" NOT NULL,
+    "payload" JSONB NOT NULL,
+    "client_version" INTEGER NOT NULL DEFAULT 1,
+    "server_version" INTEGER,
+    "status" "M09SyncStatus" NOT NULL DEFAULT 'pending',
+    "error_message" TEXT,
+    "retry_count" INTEGER NOT NULL DEFAULT 0,
+    "client_timestamp" TIMESTAMP(3) NOT NULL,
+    "synced_at" TIMESTAMP(3),
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "m09_offline_queue_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "m09_sync_conflicts" (
+    "id" TEXT NOT NULL,
+    "queue_item_id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "entity_type" TEXT NOT NULL,
+    "entity_id" TEXT NOT NULL,
+    "client_version" INTEGER NOT NULL,
+    "server_version" INTEGER NOT NULL,
+    "client_data" JSONB NOT NULL,
+    "server_data" JSONB NOT NULL,
+    "merged_data" JSONB,
+    "resolution_status" "M09ConflictResolutionStatus" NOT NULL DEFAULT 'pending',
+    "resolved_by" TEXT,
+    "resolved_at" TIMESTAMP(3),
+    "has_version_conflict" BOOLEAN NOT NULL DEFAULT true,
+    "conflict_details" JSONB,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "m09_sync_conflicts_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "m01_users_email_key" ON "m01_users"("email");
 
@@ -571,6 +624,45 @@ CREATE INDEX "m09_whiteboard_elements_created_at_idx" ON "m09_whiteboard_element
 -- CreateIndex
 CREATE INDEX "m09_whiteboard_elements_z_index_idx" ON "m09_whiteboard_elements"("z_index");
 
+-- CreateIndex
+CREATE INDEX "m09_offline_queue_user_id_idx" ON "m09_offline_queue"("user_id");
+
+-- CreateIndex
+CREATE INDEX "m09_offline_queue_entity_type_idx" ON "m09_offline_queue"("entity_type");
+
+-- CreateIndex
+CREATE INDEX "m09_offline_queue_entity_id_idx" ON "m09_offline_queue"("entity_id");
+
+-- CreateIndex
+CREATE INDEX "m09_offline_queue_status_idx" ON "m09_offline_queue"("status");
+
+-- CreateIndex
+CREATE INDEX "m09_offline_queue_client_timestamp_idx" ON "m09_offline_queue"("client_timestamp");
+
+-- CreateIndex
+CREATE INDEX "m09_offline_queue_created_at_idx" ON "m09_offline_queue"("created_at");
+
+-- CreateIndex
+CREATE INDEX "m09_sync_conflicts_queue_item_id_idx" ON "m09_sync_conflicts"("queue_item_id");
+
+-- CreateIndex
+CREATE INDEX "m09_sync_conflicts_user_id_idx" ON "m09_sync_conflicts"("user_id");
+
+-- CreateIndex
+CREATE INDEX "m09_sync_conflicts_entity_type_idx" ON "m09_sync_conflicts"("entity_type");
+
+-- CreateIndex
+CREATE INDEX "m09_sync_conflicts_entity_id_idx" ON "m09_sync_conflicts"("entity_id");
+
+-- CreateIndex
+CREATE INDEX "m09_sync_conflicts_resolution_status_idx" ON "m09_sync_conflicts"("resolution_status");
+
+-- CreateIndex
+CREATE INDEX "m09_sync_conflicts_has_version_conflict_idx" ON "m09_sync_conflicts"("has_version_conflict");
+
+-- CreateIndex
+CREATE INDEX "m09_sync_conflicts_created_at_idx" ON "m09_sync_conflicts"("created_at");
+
 -- AddForeignKey
 ALTER TABLE "m01_user_sessions" ADD CONSTRAINT "m01_user_sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "m01_users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -655,3 +747,14 @@ ALTER TABLE "m09_whiteboard_elements" ADD CONSTRAINT "m09_whiteboard_elements_wh
 -- AddForeignKey
 ALTER TABLE "m09_whiteboard_elements" ADD CONSTRAINT "m09_whiteboard_elements_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "m01_users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
+-- AddForeignKey
+ALTER TABLE "m09_offline_queue" ADD CONSTRAINT "m09_offline_queue_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "m01_users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "m09_sync_conflicts" ADD CONSTRAINT "m09_sync_conflicts_queue_item_id_fkey" FOREIGN KEY ("queue_item_id") REFERENCES "m09_offline_queue"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "m09_sync_conflicts" ADD CONSTRAINT "m09_sync_conflicts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "m01_users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "m09_sync_conflicts" ADD CONSTRAINT "m09_sync_conflicts_resolved_by_fkey" FOREIGN KEY ("resolved_by") REFERENCES "m01_users"("id") ON DELETE SET NULL ON UPDATE CASCADE;

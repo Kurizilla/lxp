@@ -11,6 +11,8 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { IsOptional, IsInt, Min, Max } from 'class-validator';
+import { Type } from 'class-transformer';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { M01AdminGuard, M01AdminRequest } from '../guards/m01-admin.guard';
 import { AdminService, PaginationParams } from './admin.service';
@@ -35,7 +37,17 @@ import {
  * Query parameters for pagination
  */
 class PaginationQuery implements PaginationParams {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
   offset?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
   limit?: number;
 }
 
