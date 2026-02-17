@@ -5,3 +5,4 @@ export * from './upload.service';
 export * from './transcription.service';
 export * from './transcribe.job';
 export * from './dashboard.service';
+export * from './review.service';
