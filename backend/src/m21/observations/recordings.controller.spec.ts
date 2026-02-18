@@ -4,6 +4,7 @@ import { ObservationsService } from './observations.service';
 import { UploadService, M21PresignedUrlResponse } from './upload.service';
 import { TranscriptionService } from './transcription.service';
 import { AnalysisService } from './analysis.service';
+import { ReviewService } from './review.service';
 import { M21ObservationsGuard, M21ObservationsRequest } from '../guards/m21-observations.guard';
 import { JwtAuthGuard } from '../../m01/auth/jwt-auth.guard';
 import { M21UserWithPermissions } from '../casl/m21-ability.factory';
@@ -95,6 +96,16 @@ describe('RecordingsController', () => {
     getAnalysisStatus: jest.fn(),
   };
 
+  const mockReviewService = {
+    generatePlaybackUrl: jest.fn(),
+    getRecordingAnnotations: jest.fn(),
+    createTimestampedAnnotation: jest.fn(),
+    updateTimestampedAnnotation: jest.fn(),
+    deleteAnnotation: jest.fn(),
+    getMyReviewProgress: jest.fn(),
+    patchReviewProgress: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [RecordingsController],
@@ -114,6 +125,10 @@ describe('RecordingsController', () => {
         {
           provide: AnalysisService,
           useValue: mockAnalysisService,
+        },
+        {
+          provide: ReviewService,
+          useValue: mockReviewService,
         },
       ],
     })

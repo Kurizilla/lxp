@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Body,
   Param,
   Query,
@@ -24,6 +25,7 @@ import { ObservationsService } from './observations.service';
 import { UploadService, M21PresignedUrlResponse } from './upload.service';
 import { TranscriptionService } from './transcription.service';
 import { AnalysisService } from './analysis.service';
+import { ReviewService, M21PlaybackUrlResponseDto } from './review.service';
 import {
   M21UploadRecordingDto,
   M21UpdateRecordingDto,
@@ -42,6 +44,17 @@ import {
   M21AiReportResponseDto,
   M21AnalysisJobResponseDto,
 } from '../dto/analysis.dto';
+import {
+  M21CreateAnnotationDto,
+  M21UpdateAnnotationDto,
+  M21AnnotationsResponseDto,
+  M21AnnotationResponseDto,
+  M21ListAnnotationsQueryDto,
+} from '../dto/annotation.dto';
+import {
+  M21UpdateReviewProgressDto,
+  M21ReviewProgressResponseDto,
+} from '../dto/review-progress.dto';
 
 /**
  * DTO for generating a presigned URL
@@ -86,6 +99,7 @@ export class RecordingsController {
     private readonly uploadService: UploadService,
     private readonly transcriptionService: TranscriptionService,
     private readonly analysisService: AnalysisService,
+    private readonly reviewService: ReviewService,
   ) {}
 
   // ============================================================================
@@ -415,5 +429,154 @@ export class RecordingsController {
     @Req() req: M21ObservationsRequest,
   ): Promise<M21AnalysisJobResponseDto> {
     return this.analysisService.getAnalysisStatus(id, req.userWithPermissions!);
+  }
+
+  // ============================================================================
+  // REVIEW ENDPOINTS (Signed URLs, Annotations, Progress)
+  // ============================================================================
+
+  /**
+   * GET /m21/recordings/:id/playback
+   * Get a signed URL for secure video/audio playback
+   * 
+   * This endpoint generates a time-limited signed URL that allows
+   * secure streaming of the recording without exposing raw S3 credentials.
+   * 
+   * Returns:
+   * - playback_url: Signed URL for streaming (expires in 1 hour)
+   * - file_key: S3 object key
+   * - mime_type: Content type for proper player configuration
+   * 
+   * The recording must be in a playable state (ready, transcribing, analyzing, completed)
+   * 
+   * STUB: Returns mock signed URL. Production would use AWS S3 SDK.
+   */
+  @Get(':id/playback')
+  async getPlaybackUrl(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21PlaybackUrlResponseDto> {
+    return this.reviewService.generatePlaybackUrl(id, req.userWithPermissions!);
+  }
+
+  /**
+   * GET /m21/recordings/:id/review-annotations
+   * Get annotations for a recording, ordered by timestamp
+   * 
+   * Returns annotations sorted by timestamp_seconds for timeline display.
+   * Useful for displaying annotations alongside video playback.
+   * 
+   * Query parameters:
+   * - offset: Number of records to skip
+   * - limit: Maximum records to return (default: 20, max: 100)
+   * - reviewer_id: Filter by reviewer
+   * - is_ai_suggestion: Filter AI vs human annotations
+   */
+  @Get(':id/review-annotations')
+  async getReviewAnnotations(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: M21ListAnnotationsQueryDto,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21AnnotationsResponseDto> {
+    return this.reviewService.getRecordingAnnotations(id, query, req.userWithPermissions!);
+  }
+
+  /**
+   * POST /m21/recordings/:id/review-annotations
+   * Create a timestamped annotation on a recording
+   * 
+   * Creates an annotation at a specific timestamp in the recording.
+   * The timestamp is validated against the recording duration if known.
+   * 
+   * Body:
+   * - timestamp_seconds: Position in the video (required)
+   * - text: Annotation content (required, max 2000 chars)
+   * - is_ai_suggestion: Whether this is an AI-generated annotation (optional)
+   */
+  @Post(':id/review-annotations')
+  @HttpCode(HttpStatus.CREATED)
+  async createReviewAnnotation(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: M21CreateAnnotationDto,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21AnnotationResponseDto> {
+    // Override the observation_recording_id with the path param
+    dto.observation_recording_id = id;
+    return this.reviewService.createTimestampedAnnotation(id, dto, req.userWithPermissions!);
+  }
+
+  /**
+   * PATCH /m21/recordings/:id/review-annotations/:annotationId
+   * Update a timestamped annotation
+   * 
+   * Updates the annotation text and/or timestamp.
+   * Timestamp is validated against recording duration if being updated.
+   * 
+   * Body (all optional):
+   * - timestamp_seconds: New position in the video
+   * - text: Updated annotation content
+   */
+  @Patch(':id/review-annotations/:annotationId')
+  async updateReviewAnnotation(
+    @Param('id', ParseUUIDPipe) _id: string,
+    @Param('annotationId', ParseUUIDPipe) annotationId: string,
+    @Body() dto: M21UpdateAnnotationDto,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21AnnotationResponseDto> {
+    return this.reviewService.updateTimestampedAnnotation(annotationId, dto, req.userWithPermissions!);
+  }
+
+  /**
+   * DELETE /m21/recordings/:id/review-annotations/:annotationId
+   * Delete an annotation
+   * 
+   * Permanently removes the annotation. Requires delete or manage permission.
+   */
+  @Delete(':id/review-annotations/:annotationId')
+  @HttpCode(HttpStatus.OK)
+  async deleteReviewAnnotation(
+    @Param('id', ParseUUIDPipe) _id: string,
+    @Param('annotationId', ParseUUIDPipe) annotationId: string,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<{ message: string }> {
+    return this.reviewService.deleteAnnotation(annotationId, req.userWithPermissions!);
+  }
+
+  /**
+   * GET /m21/recordings/:id/my-progress
+   * Get the current user's review progress for a recording
+   * 
+   * Returns the reviewer's progress through the video including:
+   * - status: Current review status (not_started, in_progress, etc.)
+   * - progress_percentage: How much of the video has been reviewed (0-100)
+   * 
+   * Returns null if no progress record exists yet.
+   */
+  @Get(':id/my-progress')
+  async getMyReviewProgress(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21ReviewProgressResponseDto | null> {
+    return this.reviewService.getMyReviewProgress(id, req.userWithPermissions!);
+  }
+
+  /**
+   * PATCH /m21/recordings/:id/progress/:progressId
+   * Update review progress for a recording
+   * 
+   * Updates the reviewer's progress tracking as they watch the video.
+   * 
+   * Body (all optional):
+   * - status: New review status
+   * - progress_percentage: Updated progress (0-100)
+   */
+  @Patch(':id/progress/:progressId')
+  async patchReviewProgress(
+    @Param('id', ParseUUIDPipe) _id: string,
+    @Param('progressId', ParseUUIDPipe) progressId: string,
+    @Body() dto: M21UpdateReviewProgressDto,
+    @Req() req: M21ObservationsRequest,
+  ): Promise<M21ReviewProgressResponseDto> {
+    return this.reviewService.patchReviewProgress(progressId, dto, req.userWithPermissions!);
   }
 }

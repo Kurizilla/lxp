@@ -11,6 +11,7 @@ import { TranscribeJobProcessor } from './observations/transcribe.job';
 import { AnalysisService } from './observations/analysis.service';
 import { AnalyzeJobProcessor } from './observations/analyze.job';
 import { DashboardService } from './observations/dashboard.service';
+import { ReviewService } from './observations/review.service';
 import { M21AbilityFactory } from './casl/m21-ability.factory';
 import { M21ObservationsGuard } from './guards/m21-observations.guard';
 
@@ -59,9 +60,10 @@ export const M21_PROCESSING_QUEUE = 'm21_processing';
     AnalysisService,
     AnalyzeJobProcessor,
     DashboardService,
+    ReviewService,
     M21AbilityFactory,
     M21ObservationsGuard,
   ],
-  exports: [ObservationsService, UploadService, TranscriptionService, AnalysisService, DashboardService, M21AbilityFactory],
+  exports: [ObservationsService, UploadService, TranscriptionService, AnalysisService, DashboardService, ReviewService, M21AbilityFactory],
 })
 export class M21Module {}
