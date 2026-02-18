@@ -16,6 +16,7 @@ import {
   PreferencesPage,
 } from '@/features/notifications';
 import { AssistantPage } from '@/features/assistant';
+import { ObservationsConfigPage, UploadRecordingPage } from '@/pages';
 import { AuthGuard, GuestGuard, AdminGuard, TeacherGuard } from '@/routes';
 import { AdminLayout, TeacherLayout } from '@/components/layout';
 
@@ -156,6 +157,28 @@ export function App() {
           <AuthGuard>
             <TeacherLayout>
               <AssistantPage />
+            </TeacherLayout>
+          </AuthGuard>
+        }
+      />
+
+      {/* Observations routes */}
+      <Route
+        path="/observations-config"
+        element={
+          <AuthGuard>
+            <TeacherLayout>
+              <ObservationsConfigPage />
+            </TeacherLayout>
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/upload-recording"
+        element={
+          <AuthGuard>
+            <TeacherLayout>
+              <UploadRecordingPage />
             </TeacherLayout>
           </AuthGuard>
         }
