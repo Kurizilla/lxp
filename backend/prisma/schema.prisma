@@ -47,6 +47,13 @@ model m01_users {
   sync_conflicts              m09_sync_conflicts[]               @relation("UserSyncConflicts")
   resolved_conflicts          m09_sync_conflicts[]               @relation("ConflictResolver")
 
+  // M21 Observation Relations
+  created_storage_buckets     m21_storage_buckets[]              @relation("StorageBucketCreator")
+  observations_as_teacher     m21_observation_recordings[]       @relation("ObservationTeacher")
+  observations_as_observer    m21_observation_recordings[]       @relation("ObservationObserver")
+  annotations_as_reviewer     m21_annotations[]                  @relation("AnnotationReviewer")
+  review_progress_as_reviewer m21_review_progress[]              @relation("ReviewProgressReviewer")
+
   @@index([email])
   @@index([google_id])
   @@index([is_active])
@@ -220,6 +227,9 @@ model m01_classrooms {
   // M09 Relations
   calendar       m09_calendars?
   class_sessions m09_class_sessions[]
+
+  // M21 Relations
+  observation_recordings m21_observation_recordings[]
 
   @@index([institution_id])
   @@index([subject_id])
@@ -645,4 +655,163 @@ model m09_sync_conflicts {
   @@index([resolution_status])
   @@index([has_version_conflict])
   @@index([created_at])
+}
+
+// ============================================================================
+// M21 - Classroom Observations & AI Analysis
+// ============================================================================
+
+/// Status enum for observation recordings
+enum M21ObservationRecordingStatus {
+  uploading
+  processing
+  ready
+  transcribing
+  analyzing
+  completed
+  failed
+  archived
+}
+
+/// Status enum for review progress
+enum M21ReviewProgressStatus {
+  not_started
+  in_progress
+  review_pending
+  completed
+  archived
+}
+
+/// Storage buckets for S3-compatible storage
+model m21_storage_buckets {
+  id                   String   @id @default(uuid())
+  name                 String   @unique
+  s3_bucket            String
+  s3_region            String
+  access_key_encrypted String
+  secret_key_encrypted String
+  created_by_id        String?
+  is_active            Boolean  @default(true)
+  created_at           DateTime @default(now())
+  updated_at           DateTime @updatedAt
+
+  // Relations
+  created_by            m01_users?               @relation("StorageBucketCreator", fields: [created_by_id], references: [id], onDelete: SetNull)
+  observation_recordings m21_observation_recordings[]
+
+  @@index([name])
+  @@index([is_active])
+  @@index([created_by_id])
+}
+
+/// Observation recordings for classroom observations
+model m21_observation_recordings {
+  id                String                        @id @default(uuid())
+  storage_bucket_id String
+  class_id          String
+  teacher_id        String
+  observer_id       String?
+  session_date      DateTime
+  file_key          String
+  mime_type         String
+  duration_seconds  Int?
+  file_size_bytes   BigInt?
+  status            M21ObservationRecordingStatus @default(uploading)
+  metadata          Json?
+  created_at        DateTime                      @default(now())
+  updated_at        DateTime                      @updatedAt
+
+  // Relations
+  storage_bucket  m21_storage_buckets   @relation(fields: [storage_bucket_id], references: [id], onDelete: Cascade)
+  classroom       m01_classrooms        @relation(fields: [class_id], references: [id], onDelete: Cascade)
+  teacher         m01_users             @relation("ObservationTeacher", fields: [teacher_id], references: [id], onDelete: Cascade)
+  observer        m01_users?            @relation("ObservationObserver", fields: [observer_id], references: [id], onDelete: SetNull)
+  transcripts     m21_transcripts[]
+  ai_reports      m21_ai_reports[]
+  annotations     m21_annotations[]
+  review_progress m21_review_progress[]
+
+  @@index([storage_bucket_id])
+  @@index([class_id])
+  @@index([teacher_id])
+  @@index([observer_id])
+  @@index([session_date])
+  @@index([status])
+  @@index([created_at])
+}
+
+/// Transcripts for observation recordings
+model m21_transcripts {
+  id                       String   @id @default(uuid())
+  observation_recording_id String   @unique
+  full_text                String
+  segments                 Json?
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  // Relations
+  observation_recording m21_observation_recordings @relation(fields: [observation_recording_id], references: [id], onDelete: Cascade)
+
+  @@index([observation_recording_id])
+}
+
+/// AI-generated reports for observation recordings
+model m21_ai_reports {
+  id                       String   @id @default(uuid())
+  observation_recording_id String   @unique
+  teacher_score            Decimal? @db.Decimal(5, 2)
+  engagement_score         Decimal? @db.Decimal(5, 2)
+  insights                 Json?
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  // Relations
+  observation_recording m21_observation_recordings @relation(fields: [observation_recording_id], references: [id], onDelete: Cascade)
+
+  @@index([observation_recording_id])
+  @@index([teacher_score])
+  @@index([engagement_score])
+}
+
+/// Annotations on observation recordings by reviewers
+model m21_annotations {
+  id                       String   @id @default(uuid())
+  observation_recording_id String
+  reviewer_id              String?
+  timestamp_seconds        Int
+  text                     String
+  is_ai_suggestion         Boolean  @default(false)
+  created_at               DateTime @default(now())
+  updated_at               DateTime @updatedAt
+
+  // Relations
+  observation_recording m21_observation_recordings @relation(fields: [observation_recording_id], references: [id], onDelete: Cascade)
+  reviewer              m01_users?                 @relation("AnnotationReviewer", fields: [reviewer_id], references: [id], onDelete: SetNull)
+
+  @@index([observation_recording_id])
+  @@index([reviewer_id])
+  @@index([timestamp_seconds])
+  @@index([is_ai_suggestion])
+  @@index([created_at])
+}
+
+/// Review progress tracking for observation recordings
+model m21_review_progress {
+  id                       String                  @id @default(uuid())
+  observation_recording_id String
+  reviewer_id              String
+  status                   M21ReviewProgressStatus @default(not_started)
+  progress_percentage      Int                     @default(0)
+  created_at               DateTime                @default(now())
+  updated_at               DateTime                @updatedAt
+
+  // Relations
+  observation_recording m21_observation_recordings @relation(fields: [observation_recording_id], references: [id], onDelete: Cascade)
+  reviewer              m01_users                  @relation("ReviewProgressReviewer", fields: [reviewer_id], references: [id], onDelete: Cascade)
+
+  @@unique([observation_recording_id, reviewer_id])
+  @@index([observation_recording_id])
+  @@index([reviewer_id])
+  @@index([status])
+  @@index([progress_percentage])
 }
